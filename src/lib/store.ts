@@ -5,6 +5,7 @@ const PURCHASE_KEY = "coal_purchase_records";
 const OPENING_KEY = "coal_opening_balance";
 const VENDOR_KEY = "coal_vendors";
 const PO_KEY = "coal_purchase_orders";
+const ITEM_KEY = "coal_items";
 
 // --- Daily Records ---
 export function getDailyRecords(): DailyRecord[] {
