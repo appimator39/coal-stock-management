@@ -138,9 +138,9 @@ export default function Purchases() {
         {selectedPO && (
           <div className="mt-4 p-3 rounded-lg bg-muted/50 text-sm space-y-1">
             <p><span className="text-muted-foreground">Vendor:</span> <strong>{getVendorName(selectedPO.vendorId)}</strong></p>
-            <p><span className="text-muted-foreground">Price/Ton:</span> <strong>PKR {selectedPO.pricePerTon}</strong></p>
+            <p><span className="text-muted-foreground">Price/Ton:</span> <strong>Rs {selectedPO.pricePerTon}</strong></p>
             <p><span className="text-muted-foreground">PO Quantity:</span> <strong>{selectedPO.quantity} tons</strong></p>
-            <p><span className="text-muted-foreground">Total Amount:</span> <strong>PKR {selectedPO.totalAmount.toLocaleString()}</strong></p>
+            <p><span className="text-muted-foreground">Total Amount:</span> <strong>Rs {selectedPO.totalAmount.toLocaleString()}</strong></p>
           </div>
         )}
       </div>
@@ -158,8 +158,8 @@ export default function Purchases() {
                   <th className="pb-2 font-medium">PO #</th>
                   <th className="pb-2 font-medium">Vendor</th>
                   <th className="pb-2 font-medium">Qty (tons)</th>
-                  <th className="pb-2 font-medium">Price/Ton (PKR)</th>
-                  <th className="pb-2 font-medium">Total (PKR)</th>
+                  <th className="pb-2 font-medium">Price/Ton (Rs)</th>
+                  <th className="pb-2 font-medium">Total (Rs)</th>
                   <th className="pb-2 font-medium"></th>
                 </tr>
               </thead>
@@ -170,8 +170,8 @@ export default function Purchases() {
                     <td className="py-2.5 font-mono text-xs">{r.poNumber}</td>
                     <td className="py-2.5">{r.vendor}</td>
                     <td className="py-2.5">{r.quantity}</td>
-                    <td className="py-2.5">PKR {r.pricePerTon}</td>
-                    <td className="py-2.5">PKR {r.totalAmount.toLocaleString()}</td>
+                    <td className="py-2.5">Rs {r.pricePerTon}</td>
+                    <td className="py-2.5">Rs {r.totalAmount.toLocaleString()}</td>
                     <td className="py-2.5">
                       <Button variant="ghost" size="icon" onClick={() => handleDelete(r.id)}>
                         <Trash2 className="w-4 h-4 text-destructive" />
