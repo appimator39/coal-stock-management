@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, Plus, Trash2, CalendarDays, Info } from "lucide-react";
+import { CalendarIcon, Plus, Trash2, CalendarDays, Info, X, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,17 +13,24 @@ import { DailyRecord } from "@/lib/types";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
+interface ItemLine {
+  id: string;
+  itemId: string;
+  itemName: string;
+  quantity: string;
+  rate: number; // auto-calculated
+}
+
 export default function DailyLog() {
   const [records, setRecords] = useState<DailyRecord[]>(getDailyRecords());
   const [date, setDate] = useState<Date>();
-  const [selectedItem, setSelectedItem] = useState("");
-  const [coalConsumed, setCoalConsumed] = useState("");
   const [steamProduced, setSteamProduced] = useState("");
-  const [costPerTon, setCostPerTon] = useState("");
+  const [itemLines, setItemLines] = useState<ItemLine[]>([]);
+  const [costOverride, setCostOverride] = useState("");
 
   const availableItems = getItems();
 
-  // Calculate weighted average purchase rate per item
+  // Purchase rate per item
   const purchaseRateByItem = useMemo(() => {
     const purchases = getPurchaseRecords();
     const map = new Map<string, { totalQty: number; totalAmount: number }>();
@@ -41,41 +48,89 @@ export default function DailyLog() {
     return result;
   }, [records]);
 
-  // Get rate for selected item
-  const selectedItemName = availableItems.find((i) => i.id === selectedItem)?.name || "";
-  const itemRate = selectedItemName ? (purchaseRateByItem[selectedItemName] || 0) : 0;
-  const effectiveCostPerTon = costPerTon !== "" ? costPerTon : (itemRate > 0 ? itemRate.toFixed(2) : "");
+  // Combined weighted average from selected items
+  const combinedStats = useMemo(() => {
+    let totalQty = 0;
+    let totalWeightedCost = 0;
+    itemLines.forEach((line) => {
+      const qty = parseFloat(line.quantity) || 0;
+      totalQty += qty;
+      totalWeightedCost += qty * line.rate;
+    });
+    const avgRate = totalQty > 0 ? totalWeightedCost / totalQty : 0;
+    return { totalQty, avgRate };
+  }, [itemLines]);
+
+  const effectiveCostPerTon = costOverride !== "" ? parseFloat(costOverride) || 0 : combinedStats.avgRate;
+
+  const addItemLine = () => {
+    setItemLines([...itemLines, {
+      id: crypto.randomUUID(),
+      itemId: "",
+      itemName: "",
+      quantity: "",
+      rate: 0,
+    }]);
+  };
+
+  const updateItemLine = (id: string, field: "itemId" | "quantity", value: string) => {
+    setItemLines(itemLines.map((line) => {
+      if (line.id !== id) return line;
+      if (field === "itemId") {
+        const item = availableItems.find((i) => i.id === value);
+        const name = item?.name || "";
+        return { ...line, itemId: value, itemName: name, rate: purchaseRateByItem[name] || 0 };
+      }
+      return { ...line, [field]: value };
+    }));
+  };
+
+  const removeItemLine = (id: string) => {
+    setItemLines(itemLines.filter((l) => l.id !== id));
+  };
 
   const handleAdd = () => {
-    if (!date || !selectedItem || !coalConsumed || !steamProduced || !effectiveCostPerTon) {
-      toast.error("Please fill all fields");
+    if (!date || itemLines.length === 0 || !steamProduced) {
+      toast.error("Please fill date, add at least one item, and enter steam produced");
       return;
     }
-    const coal = parseFloat(coalConsumed);
     const steam = parseFloat(steamProduced);
-    const cost = parseFloat(effectiveCostPerTon);
-    if (isNaN(coal) || isNaN(steam) || isNaN(cost)) {
-      toast.error("Please enter valid numbers");
+    if (isNaN(steam)) { toast.error("Invalid steam value"); return; }
+
+    const validLines = itemLines.filter((l) => l.itemId && parseFloat(l.quantity) > 0);
+    if (validLines.length === 0) {
+      toast.error("Please select items and enter quantities");
       return;
     }
-    const itemObj = availableItems.find((i) => i.id === selectedItem);
-    const record: DailyRecord = {
-      id: crypto.randomUUID(),
-      date: format(date, "yyyy-MM-dd"),
-      item: itemObj?.name || "General",
-      coalConsumed: coal,
-      steamProduced: steam,
-      costPerTon: cost,
-      totalCost: coal * cost,
-    };
-    saveDailyRecord(record);
+
+    const costPerTon = effectiveCostPerTon;
+    if (costPerTon <= 0) {
+      toast.error("Cost per ton must be greater than 0");
+      return;
+    }
+
+    // Save one record per item line
+    const steamPerItem = steam / validLines.length;
+    validLines.forEach((line) => {
+      const qty = parseFloat(line.quantity);
+      const record: DailyRecord = {
+        id: crypto.randomUUID(),
+        date: format(date, "yyyy-MM-dd"),
+        item: line.itemName,
+        coalConsumed: qty,
+        steamProduced: parseFloat((steamPerItem).toFixed(2)),
+        costPerTon,
+        totalCost: qty * costPerTon,
+      };
+      saveDailyRecord(record);
+    });
+
     setRecords(getDailyRecords());
     setDate(undefined);
-    setSelectedItem("");
-    setCoalConsumed("");
     setSteamProduced("");
-    setCostPerTon("");
-    toast.success("Record added");
+    setItemLines([]);
+    setCostOverride("");
+    toast.success(`${validLines.length} record(s) added`);
   };
 
   const handleDelete = (id: string) => {
@@ -84,6 +139,9 @@ export default function DailyLog() {
     toast.success("Record deleted");
   };
 
+  // Items already used in current lines
+  const usedItemIds = itemLines.map((l) => l.itemId).filter(Boolean);
+
   return (
     <div>
       <div className="page-header">
@@ -91,12 +149,13 @@ export default function DailyLog() {
         <p className="page-subtitle">Record daily coal consumption and steam production</p>
       </div>
 
-      <div className="form-section">
-        <div className="form-section-header">
+      <div className="content-card mb-6">
+        <div className="content-card-header">
           <h2 className="font-heading font-semibold text-sm">Add New Entry</h2>
         </div>
-        <div className="form-section-body">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+        <div className="content-card-body space-y-5">
+          {/* Row 1: Date & Steam */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Date</Label>
               <Popover>
@@ -112,62 +171,130 @@ export default function DailyLog() {
               </Popover>
             </div>
             <div>
-              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Coal Item</Label>
-              {availableItems.length === 0 ? (
-                <p className="mt-1.5 text-sm text-muted-foreground">
-                  No items. <a href="/items" className="text-primary underline">Add items</a> first.
-                </p>
-              ) : (
-                <Select value={selectedItem} onValueChange={(val) => { setSelectedItem(val); setCostPerTon(""); }}>
-                  <SelectTrigger className="mt-1.5">
-                    <SelectValue placeholder="Select coal type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableItems.map((i) => (
-                      <SelectItem key={i.id} value={i.id}>{i.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-            <div>
-              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Coal Consumed (tons)</Label>
-              <Input type="number" value={coalConsumed} onChange={(e) => setCoalConsumed(e.target.value)} className="mt-1.5" placeholder="0.00" />
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-            <div>
               <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Steam Produced (tons)</Label>
               <Input type="number" value={steamProduced} onChange={(e) => setSteamProduced(e.target.value)} className="mt-1.5" placeholder="0.00" />
             </div>
           </div>
-          <div className="mb-6">
-            <div className="flex items-center gap-1.5">
-              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Cost per Ton (Rs)</Label>
-              {itemRate > 0 && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p className="text-xs">Avg. purchase rate for {selectedItemName}: Rs {itemRate.toFixed(2)}/ton</p>
-                  </TooltipContent>
-                </Tooltip>
-              )}
+
+          {/* Coal Items Section */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Coal Items Consumed</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={addItemLine}
+                disabled={availableItems.length === 0}
+                className="h-8 text-xs"
+              >
+                <Plus className="w-3.5 h-3.5 mr-1.5" /> Add Item
+              </Button>
             </div>
-            <Input
-              type="number"
-              value={effectiveCostPerTon}
-              onChange={(e) => setCostPerTon(e.target.value)}
-              className="mt-1.5"
-              placeholder={itemRate > 0 ? `Avg: Rs ${itemRate.toFixed(2)}` : "0.00"}
-            />
-            {itemRate > 0 && costPerTon === "" && (
-              <p className="text-[10px] text-success mt-1 font-medium">Auto-filled from {selectedItemName} avg. rate</p>
+
+            {availableItems.length === 0 && (
+              <div className="rounded-lg border border-dashed border-border p-4 text-center">
+                <p className="text-sm text-muted-foreground">
+                  No items available. <a href="/items" className="text-primary underline font-medium">Add items</a> first.
+                </p>
+              </div>
+            )}
+
+            {itemLines.length === 0 && availableItems.length > 0 && (
+              <div
+                className="rounded-lg border border-dashed border-border p-6 text-center cursor-pointer hover:border-primary/40 hover:bg-muted/30 transition-colors"
+                onClick={addItemLine}
+              >
+                <Layers className="w-5 h-5 text-muted-foreground mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">Click to add coal items consumed today</p>
+              </div>
+            )}
+
+            {itemLines.length > 0 && (
+              <div className="space-y-2.5">
+                {itemLines.map((line, idx) => (
+                  <div key={line.id} className="flex items-center gap-3 p-3 rounded-lg bg-muted/40 border border-border/50">
+                    <span className="text-xs font-bold text-muted-foreground w-5 shrink-0">{idx + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <Select value={line.itemId} onValueChange={(val) => updateItemLine(line.id, "itemId", val)}>
+                        <SelectTrigger className="h-9 text-sm">
+                          <SelectValue placeholder="Select item" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableItems
+                            .filter((i) => !usedItemIds.includes(i.id) || i.id === line.itemId)
+                            .map((i) => (
+                              <SelectItem key={i.id} value={i.id}>{i.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="w-28 shrink-0">
+                      <Input
+                        type="number"
+                        value={line.quantity}
+                        onChange={(e) => updateItemLine(line.id, "quantity", e.target.value)}
+                        className="h-9 text-sm"
+                        placeholder="Tons"
+                      />
+                    </div>
+                    {line.rate > 0 && (
+                      <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
+                        Rs {line.rate.toFixed(0)}/t
+                      </span>
+                    )}
+                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => removeItemLine(line.id)}>
+                      <X className="w-3.5 h-3.5 text-destructive" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
-          <Button onClick={handleAdd} className="w-full sm:w-auto">
-            <Plus className="w-4 h-4 mr-2" /> Add Entry
+
+          {/* Cost Summary */}
+          {itemLines.length > 0 && (
+            <div className="rounded-lg border border-border/50 bg-muted/20 p-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Total Coal</p>
+                  <p className="text-lg font-bold mt-0.5">{combinedStats.totalQty.toFixed(1)} <span className="text-xs font-normal text-muted-foreground">tons</span></p>
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Avg Cost/Ton</p>
+                    {combinedStats.avgRate > 0 && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="w-3 h-3 text-muted-foreground cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="text-xs">Weighted average from item purchase rates</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+                  </div>
+                  <Input
+                    type="number"
+                    value={costOverride !== "" ? costOverride : (combinedStats.avgRate > 0 ? combinedStats.avgRate.toFixed(2) : "")}
+                    onChange={(e) => setCostOverride(e.target.value)}
+                    className="h-9 mt-1 text-sm"
+                    placeholder="0.00"
+                  />
+                  {combinedStats.avgRate > 0 && costOverride === "" && (
+                    <p className="text-[10px] text-success mt-1 font-medium">Auto-calculated weighted avg.</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Total Cost</p>
+                  <p className="text-lg font-bold mt-0.5">Rs {(combinedStats.totalQty * effectiveCostPerTon).toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <Button onClick={handleAdd} className="w-full sm:w-auto" disabled={itemLines.length === 0}>
+            <Plus className="w-4 h-4 mr-2" /> Save Entry
           </Button>
         </div>
       </div>
@@ -207,7 +334,7 @@ export default function DailyLog() {
                       <td>{r.item || "—"}</td>
                       <td>{r.coalConsumed}</td>
                       <td>{r.steamProduced}</td>
-                      <td>Rs {r.costPerTon}</td>
+                      <td>Rs {r.costPerTon.toLocaleString()}</td>
                       <td className="font-medium">Rs {r.totalCost.toLocaleString()}</td>
                       <td>
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(r.id)}>
