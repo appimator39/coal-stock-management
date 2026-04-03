@@ -16,9 +16,10 @@ import { Badge } from "@/components/ui/badge";
 export default function PurchaseOrders() {
   const [orders, setOrders] = useState<PurchaseOrder[]>(getPurchaseOrders());
   const vendors = getVendors();
+  const availableItems = getItems();
   const [date, setDate] = useState<Date>();
   const [vendorId, setVendorId] = useState("");
-  const [item, setItem] = useState("");
+  const [itemId, setItemId] = useState("");
   const [quantity, setQuantity] = useState("");
   const [pricePerTon, setPricePerTon] = useState("");
 
