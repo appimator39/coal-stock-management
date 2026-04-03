@@ -107,7 +107,50 @@ export default function BalanceReport() {
         <StatCard title="Closing Balance" value={summary.closing.toFixed(1)} unit="tons" icon={Scale} variant={summary.closing < 0 ? "warning" : "default"} />
       </div>
 
-      <div className="content-card">
+      {/* Item-wise Stock Breakdown */}
+      {itemBalances.length > 0 && (
+        <div className="content-card mb-6">
+          <div className="content-card-header">
+            <h2 className="font-heading font-semibold text-sm">Item-wise Coal Balance</h2>
+            <span className="text-xs text-muted-foreground">{itemBalances.length} items</span>
+          </div>
+          <div className="content-card-body p-0">
+            <div className="overflow-x-auto">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Coal Item</th>
+                    <th>Purchased (tons)</th>
+                    <th>Consumed (tons)</th>
+                    <th>In Stock (tons)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {itemBalances.map((ib) => (
+                    <tr key={ib.item}>
+                      <td className="font-medium">{ib.item}</td>
+                      <td className="text-success font-medium">+{ib.purchased.toFixed(1)}</td>
+                      <td className="text-primary font-medium">-{ib.consumed.toFixed(1)}</td>
+                      <td className={cn("font-bold", ib.balance < 0 ? "text-destructive" : "text-foreground")}>
+                        {ib.balance.toFixed(1)}
+                      </td>
+                    </tr>
+                  ))}
+                  <tr className="bg-muted/30">
+                    <td className="font-bold">Total</td>
+                    <td className="font-bold text-success">+{itemBalances.reduce((s, i) => s + i.purchased, 0).toFixed(1)}</td>
+                    <td className="font-bold text-primary">-{itemBalances.reduce((s, i) => s + i.consumed, 0).toFixed(1)}</td>
+                    <td className={cn("font-bold", summary.closing < 0 ? "text-destructive" : "text-foreground")}>
+                      {itemBalances.reduce((s, i) => s + i.balance, 0).toFixed(1)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
         <div className="content-card-header">
           <h2 className="font-heading font-semibold text-sm">Date-wise Balance</h2>
           <span className="text-xs text-muted-foreground">{dateEntries.length} entries</span>
