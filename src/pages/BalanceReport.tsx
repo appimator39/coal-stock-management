@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { getDailyRecords, getPurchaseRecords, getOpeningBalance, setOpeningBalance, resetAllData } from "@/lib/store";
-import { Package, TrendingDown, TrendingUp, Scale, BarChart3, AlertTriangle } from "lucide-react";
+import { Package, TrendingDown, TrendingUp, Scale, BarChart3, AlertTriangle, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 import StatCard from "@/components/StatCard";
 import { toast } from "sonner";
