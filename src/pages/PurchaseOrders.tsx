@@ -42,12 +42,13 @@ export default function PurchaseOrders() {
       toast.error("Please enter valid numbers");
       return;
     }
+    const selectedItem = availableItems.find((i) => i.id === itemId);
     const po: PurchaseOrder = {
       id: crypto.randomUUID(),
       poNumber: generatePONumber(),
       date: format(date, "yyyy-MM-dd"),
       vendorId,
-      item: item.trim(),
+      item: selectedItem?.name || "",
       quantity: qty,
       pricePerTon: price,
       totalAmount: qty * price,
