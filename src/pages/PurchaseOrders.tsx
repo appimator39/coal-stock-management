@@ -276,7 +276,7 @@ export default function PurchaseOrders() {
                     <th>Price/Ton (Rs)</th>
                     <th>Total (Rs)</th>
                     <th>Status</th>
-                    <th className="w-10"></th>
+                    <th className="w-28"></th>
                   </tr>
                 </thead>
                 <tbody>
