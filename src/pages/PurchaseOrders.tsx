@@ -297,11 +297,22 @@ export default function PurchaseOrders() {
                         </Badge>
                       </td>
                       <td>
-                        {o.status === "pending" && (
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(o.id)}>
-                            <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            title="View Details"
+                            onClick={() => { setSelectedPO(o); setModalOpen(true); }}
+                          >
+                            <Eye className="w-3.5 h-3.5 text-muted-foreground" />
                           </Button>
-                        )}
+                          {o.status === "pending" && (
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(o.id)}>
+                              <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                            </Button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
