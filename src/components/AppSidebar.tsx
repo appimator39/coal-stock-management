@@ -1,9 +1,11 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Flame, LayoutDashboard, CalendarDays, ShoppingCart, BarChart3 } from "lucide-react";
+import { Flame, LayoutDashboard, CalendarDays, ShoppingCart, BarChart3, Users, ClipboardList } from "lucide-react";
 
 const links = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/daily-log", label: "Daily Log", icon: CalendarDays },
+  { to: "/vendors", label: "Vendors", icon: Users },
+  { to: "/purchase-orders", label: "Purchase Orders", icon: ClipboardList },
   { to: "/purchases", label: "Purchases", icon: ShoppingCart },
   { to: "/balance", label: "Balance Report", icon: BarChart3 },
 ];
