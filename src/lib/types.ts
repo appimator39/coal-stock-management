@@ -1,6 +1,7 @@
 export interface DailyRecord {
   id: string;
   date: string;
+  item: string; // coal item name
   coalConsumed: number; // tons
   steamProduced: number; // tons
   costPerTon: number;
