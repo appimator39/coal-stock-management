@@ -114,8 +114,8 @@ export default function Purchases() {
                     <td className="py-2.5">{r.date}</td>
                     <td className="py-2.5">{r.vendor}</td>
                     <td className="py-2.5">{r.quantity}</td>
-                    <td className="py-2.5">₹{r.pricePerTon}</td>
-                    <td className="py-2.5">₹{r.totalAmount.toLocaleString()}</td>
+                    <td className="py-2.5">PKR {r.pricePerTon}</td>
+                    <td className="py-2.5">PKR {r.totalAmount.toLocaleString()}</td>
                     <td className="py-2.5">
                       <Button variant="ghost" size="icon" onClick={() => handleDelete(r.id)}>
                         <Trash2 className="w-4 h-4 text-destructive" />

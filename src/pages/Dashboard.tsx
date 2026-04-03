@@ -49,8 +49,8 @@ export default function Dashboard() {
                     <td className="py-2.5">{r.date}</td>
                     <td className="py-2.5">{r.coalConsumed}</td>
                     <td className="py-2.5">{r.steamProduced}</td>
-                    <td className="py-2.5">₹{r.costPerTon}</td>
-                    <td className="py-2.5">₹{r.totalCost.toLocaleString()}</td>
+                    <td className="py-2.5">PKR {r.costPerTon}</td>
+                    <td className="py-2.5">PKR {r.totalCost.toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>
