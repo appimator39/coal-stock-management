@@ -321,10 +321,10 @@ export default function DailyLog() {
                         </>
                       ) : (
                         <>
-                          <td>{r.coalConsumed}</td>
-                          <td>{r.steamProduced}</td>
-                          <td>Rs {r.costPerTon.toFixed(2)}</td>
-                          <td className="font-medium">Rs {r.totalCost.toFixed(2)}</td>
+                          <td>{Number(r.coalConsumed)}</td>
+                          <td>{Number(r.steamProduced)}</td>
+                          <td>Rs {Number(r.costPerTon).toFixed(2)}</td>
+                          <td className="font-medium">Rs {Number(r.totalCost).toFixed(2)}</td>
                           <td>
                             <div className="flex gap-1">
                               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => startEdit(r)}><Pencil className="w-3.5 h-3.5 text-muted-foreground" /></Button>
