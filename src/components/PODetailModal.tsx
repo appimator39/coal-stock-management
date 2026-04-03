@@ -19,50 +19,162 @@ export default function PODetailModal({ po, open, onOpenChange, vendorName }: PO
 
   const handlePrint = () => {
     const printWindow = window.open("", "_blank");
-    if (!printWindow) {
-      return;
-    }
+    if (!printWindow) return;
 
-    const html = `
-<!DOCTYPE html>
+    const html = `<!DOCTYPE html>
 <html>
 <head>
   <title>Purchase Order - ${po.poNumber}</title>
   <style>
-    @page { size: A4; margin: 20mm; }
+    @page { size: A4; margin: 15mm 20mm; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', Arial, sans-serif; color: #1a1a2e; line-height: 1.5; padding: 40px; }
-    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; padding-bottom: 24px; border-bottom: 3px solid #1a1a2e; }
-    .company-name { font-size: 22px; font-weight: 700; color: #1a1a2e; letter-spacing: -0.5px; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      color: #1a1a2e;
+      line-height: 1.6;
+      max-width: 210mm;
+      margin: 0 auto;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding-bottom: 16px;
+      border-bottom: 3px solid #1a1a2e;
+      margin-bottom: 24px;
+    }
+    .company-name { font-size: 20px; font-weight: 700; color: #1a1a2e; }
     .company-sub { font-size: 11px; color: #666; margin-top: 2px; }
-    .po-badge { text-align: right; }
-    .po-badge h2 { font-size: 28px; font-weight: 700; color: #e65100; letter-spacing: -0.5px; }
-    .po-badge .po-num { font-size: 14px; color: #555; margin-top: 2px; font-family: monospace; }
-    .po-badge .po-date { font-size: 12px; color: #888; margin-top: 4px; }
-    .section { margin-bottom: 28px; }
-    .section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #888; margin-bottom: 10px; }
-    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    .info-box { background: #f8f8fa; border-radius: 8px; padding: 16px; }
-    .info-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #888; font-weight: 600; }
-    .info-value { font-size: 15px; font-weight: 600; color: #1a1a2e; margin-top: 4px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-    thead th { background: #1a1a2e; color: #fff; padding: 12px 16px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; text-align: left; }
-    thead th:first-child { border-radius: 8px 0 0 0; }
-    thead th:last-child { border-radius: 0 8px 0 0; text-align: right; }
-    tbody td { padding: 14px 16px; font-size: 14px; border-bottom: 1px solid #eee; }
-    tbody td:last-child { text-align: right; font-weight: 600; }
-    .total-row { background: #f8f8fa; }
-    .total-row td { font-weight: 700; font-size: 16px; border: none; padding: 16px; }
-    .total-row td:first-child { border-radius: 0 0 0 8px; }
-    .total-row td:last-child { border-radius: 0 0 8px 0; color: #e65100; }
-    .status-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .po-title { text-align: right; }
+    .po-title h2 { font-size: 22px; font-weight: 700; color: #e65100; margin: 0; }
+    .po-title .po-num { font-size: 13px; color: #555; margin-top: 2px; font-family: 'Courier New', monospace; }
+    .po-title .po-date { font-size: 12px; color: #888; margin-top: 4px; }
+
+    .details-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .detail-box {
+      background: #f5f5f8;
+      border-radius: 6px;
+      padding: 12px 16px;
+    }
+    .detail-label {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #888;
+    }
+    .detail-value {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1a1a2e;
+      margin-top: 4px;
+    }
+    .status-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
     .status-pending { background: #fff3e0; color: #e65100; }
     .status-fulfilled { background: #e8f5e9; color: #2e7d32; }
-    .footer { margin-top: 48px; padding-top: 24px; border-top: 1px solid #eee; display: flex; justify-content: space-between; }
-    .sign-block { width: 200px; text-align: center; }
-    .sign-line { border-top: 1px solid #333; margin-top: 60px; padding-top: 8px; font-size: 11px; color: #666; }
-    .watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 80px; font-weight: 900; color: rgba(0,0,0,0.03); pointer-events: none; letter-spacing: 8px; }
-    @media print { body { padding: 0; } .watermark { color: rgba(0,0,0,0.02); } }
+
+    .section-label {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #888;
+      margin-bottom: 8px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 24px;
+    }
+    thead th {
+      background: #1a1a2e;
+      color: #fff;
+      padding: 10px 14px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      text-align: left;
+    }
+    thead th:first-child { border-radius: 6px 0 0 0; }
+    thead th:last-child { border-radius: 0 6px 0 0; }
+    thead th.text-right { text-align: right; }
+    thead th.text-center { text-align: center; }
+    tbody td {
+      padding: 12px 14px;
+      font-size: 13px;
+      border-bottom: 1px solid #eee;
+      vertical-align: middle;
+    }
+    tbody td.text-right { text-align: right; }
+    tbody td.text-center { text-align: center; }
+    .total-row {
+      background: #f5f5f8;
+    }
+    .total-row td {
+      font-weight: 700;
+      font-size: 15px;
+      border: none;
+      padding: 14px;
+    }
+    .total-row td:first-child { border-radius: 0 0 0 6px; }
+    .total-row td:last-child { border-radius: 0 0 6px 0; color: #e65100; }
+
+    .amount-words {
+      background: #f5f5f8;
+      border-radius: 6px;
+      padding: 12px 16px;
+      margin-bottom: 24px;
+    }
+
+    .footer {
+      margin-top: 60px;
+      padding-top: 20px;
+      border-top: 1px solid #ddd;
+      display: flex;
+      justify-content: space-between;
+    }
+    .sign-block {
+      width: 180px;
+      text-align: center;
+    }
+    .sign-line {
+      border-top: 1px solid #333;
+      margin-top: 70px;
+      padding-top: 6px;
+      font-size: 10px;
+      color: #666;
+      font-weight: 600;
+    }
+    .watermark {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-30deg);
+      font-size: 72px;
+      font-weight: 900;
+      color: rgba(0,0,0,0.025);
+      pointer-events: none;
+      letter-spacing: 6px;
+      white-space: nowrap;
+    }
+    @media print {
+      body { padding: 0; }
+    }
   </style>
 </head>
 <body>
@@ -73,69 +185,75 @@ export default function PODetailModal({ po, open, onOpenChange, vendorName }: PO
       <div class="company-name">${COMPANY_NAME}</div>
       <div class="company-sub">Coal Procurement Department</div>
     </div>
-    <div class="po-badge">
+    <div class="po-title">
       <h2>Purchase Order</h2>
       <div class="po-num">${po.poNumber}</div>
       <div class="po-date">Date: ${po.date}</div>
     </div>
   </div>
 
-  <div class="section">
-    <div class="section-title">Order Details</div>
-    <div class="info-grid">
-      <div class="info-box">
-        <div class="info-label">Vendor</div>
-        <div class="info-value">${vendorName}</div>
+  <div class="details-grid">
+    <div class="detail-box">
+      <div class="detail-label">Vendor</div>
+      <div class="detail-value">${vendorName}</div>
+    </div>
+    <div class="detail-box">
+      <div class="detail-label">Item</div>
+      <div class="detail-value">${po.item || "Coal"}</div>
+    </div>
+    <div class="detail-box">
+      <div class="detail-label">Status</div>
+      <div class="detail-value">
+        <span class="status-badge ${po.status === "fulfilled" ? "status-fulfilled" : "status-pending"}">
+          ${po.status === "fulfilled" ? "✓ Fulfilled" : "⏳ Pending"}
+        </span>
       </div>
-      <div class="info-box">
-        <div class="info-label">Status</div>
-        <div class="info-value">
-          <span class="status-badge ${po.status === "fulfilled" ? "status-fulfilled" : "status-pending"}">
-            ${po.status === "fulfilled" ? "✓ Fulfilled" : "Pending"}
-          </span>
-        </div>
-      </div>
+    </div>
+    <div class="detail-box">
+      <div class="detail-label">PO Date</div>
+      <div class="detail-value">${po.date}</div>
     </div>
   </div>
 
-  <div class="section">
-    <div class="section-title">Items</div>
-    <table>
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Item Description</th>
-          <th>Quantity (Tons)</th>
-          <th>Rate / Ton (Rs)</th>
-          <th>Amount (Rs)</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>1</td>
-          <td>${po.item || "Coal"}</td>
-          <td>${po.quantity}</td>
-          <td>Rs ${po.pricePerTon.toLocaleString()}</td>
-          <td>Rs ${po.totalAmount.toLocaleString()}</td>
-        </tr>
-        <tr class="total-row">
-          <td colspan="4">Grand Total</td>
-          <td>Rs ${po.totalAmount.toLocaleString()}</td>
-        </tr>
-      </tbody>
-    </table>
+  <div class="section-label">Order Items</div>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:40px">#</th>
+        <th>Item Description</th>
+        <th class="text-center" style="width:100px">Qty (Tons)</th>
+        <th class="text-right" style="width:120px">Rate/Ton (Rs)</th>
+        <th class="text-right" style="width:130px">Amount (Rs)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="text-center">1</td>
+        <td style="font-weight:500">${po.item || "Coal"}</td>
+        <td class="text-center">${po.quantity}</td>
+        <td class="text-right">Rs ${po.pricePerTon.toLocaleString()}</td>
+        <td class="text-right" style="font-weight:600">Rs ${po.totalAmount.toLocaleString()}</td>
+      </tr>
+      <tr class="total-row">
+        <td colspan="4" style="text-align:right">Grand Total</td>
+        <td class="text-right">Rs ${po.totalAmount.toLocaleString()}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="amount-words">
+    <div class="detail-label">Amount in Words</div>
+    <div class="detail-value" style="font-size:13px; font-weight:500">Rupees ${numberToWords(po.totalAmount)} Only</div>
   </div>
 
-  <div class="section" style="margin-top: 32px;">
-    <div class="info-grid">
-      <div class="info-box">
-        <div class="info-label">Amount in Words</div>
-        <div class="info-value" style="font-size: 13px; font-weight: 500;">Rupees ${numberToWords(po.totalAmount)} Only</div>
-      </div>
-      <div class="info-box">
-        <div class="info-label">Payment Terms</div>
-        <div class="info-value" style="font-size: 13px; font-weight: 500;">As per agreement</div>
-      </div>
+  <div class="details-grid">
+    <div class="detail-box">
+      <div class="detail-label">Payment Terms</div>
+      <div class="detail-value" style="font-size:13px">As per agreement</div>
+    </div>
+    <div class="detail-box">
+      <div class="detail-label">Delivery</div>
+      <div class="detail-value" style="font-size:13px">At mill premises</div>
     </div>
   </div>
 
@@ -155,14 +273,12 @@ export default function PODetailModal({ po, open, onOpenChange, vendorName }: PO
 
     printWindow.document.write(html);
     printWindow.document.close();
-    printWindow.onload = () => {
-      printWindow.print();
-    };
+    printWindow.onload = () => printWindow.print();
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between pr-6">
             <span>Purchase Order Details</span>
@@ -174,66 +290,74 @@ export default function PODetailModal({ po, open, onOpenChange, vendorName }: PO
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6 mt-2">
+        <div className="space-y-5 mt-2">
           {/* Company Header */}
-          <div className="text-center pb-4 border-b">
+          <div className="text-center pb-4 border-b border-border">
             <h3 className="font-heading font-bold text-lg text-foreground">{COMPANY_NAME}</h3>
             <p className="text-xs text-muted-foreground">Coal Procurement Department</p>
           </div>
 
           {/* PO Info */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <div className="bg-muted/50 rounded-lg p-4">
               <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">PO Number</p>
-              <p className="font-mono font-bold text-lg mt-1">{po.poNumber}</p>
+              <p className="font-mono font-bold text-base mt-1">{po.poNumber}</p>
             </div>
             <div className="bg-muted/50 rounded-lg p-4">
               <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Date</p>
-              <p className="font-semibold text-lg mt-1">{po.date}</p>
+              <p className="font-semibold text-base mt-1">{po.date}</p>
             </div>
           </div>
 
           {/* Vendor & Item */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">Vendor</p>
-              <p className="font-semibold">{vendorName}</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-muted/50 rounded-lg p-4">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Vendor</p>
+              <p className="font-semibold mt-1">{vendorName}</p>
             </div>
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">Item</p>
-              <p className="font-semibold">{po.item || "—"}</p>
+            <div className="bg-muted/50 rounded-lg p-4">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Item</p>
+              <p className="font-semibold mt-1">{po.item || "—"}</p>
             </div>
           </div>
 
           <Separator />
 
-          {/* Order Summary */}
+          {/* Order Summary Table */}
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-3">Order Summary</p>
-            <div className="rounded-lg border overflow-hidden">
+            <div className="rounded-lg border border-border overflow-hidden">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-coal text-coal-foreground">
-                    <th className="px-4 py-2.5 text-left text-xs font-semibold">Description</th>
-                    <th className="px-4 py-2.5 text-right text-xs font-semibold">Qty (Tons)</th>
-                    <th className="px-4 py-2.5 text-right text-xs font-semibold">Rate/Ton</th>
-                    <th className="px-4 py-2.5 text-right text-xs font-semibold">Amount</th>
+                  <tr className="bg-foreground text-background">
+                    <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider" style={{ width: 40 }}>#</th>
+                    <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider">Description</th>
+                    <th className="px-4 py-2.5 text-center text-[10px] font-semibold uppercase tracking-wider" style={{ width: 90 }}>Qty (Tons)</th>
+                    <th className="px-4 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider" style={{ width: 110 }}>Rate/Ton</th>
+                    <th className="px-4 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider" style={{ width: 120 }}>Amount</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
+                  <tr className="border-b border-border/50">
+                    <td className="px-4 py-3 text-center text-muted-foreground">1</td>
                     <td className="px-4 py-3 font-medium">{po.item || "Coal"}</td>
-                    <td className="px-4 py-3 text-right">{po.quantity}</td>
+                    <td className="px-4 py-3 text-center">{po.quantity}</td>
                     <td className="px-4 py-3 text-right">Rs {po.pricePerTon.toLocaleString()}</td>
                     <td className="px-4 py-3 text-right font-semibold">Rs {po.totalAmount.toLocaleString()}</td>
                   </tr>
-                  <tr className="bg-muted/50 border-t">
-                    <td colSpan={3} className="px-4 py-3 font-bold text-right">Grand Total</td>
+                  <tr className="bg-muted/50">
+                    <td colSpan={4} className="px-4 py-3 font-bold text-right">Grand Total</td>
                     <td className="px-4 py-3 text-right font-bold text-primary text-base">Rs {po.totalAmount.toLocaleString()}</td>
                   </tr>
                 </tbody>
               </table>
             </div>
+          </div>
+
+          {/* Amount in Words */}
+          <div className="bg-muted/30 rounded-lg p-4 border border-border/50">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Amount in Words</p>
+            <p className="font-medium text-sm mt-1">Rupees {numberToWords(po.totalAmount)} Only</p>
           </div>
 
           {/* Actions */}
@@ -264,6 +388,5 @@ function numberToWords(num: number): string {
     return convert(Math.floor(n / 10000000)) + " Crore" + (n % 10000000 ? " " + convert(n % 10000000) : "");
   };
 
-  const intPart = Math.floor(num);
-  return convert(intPart);
+  return convert(Math.floor(num));
 }
