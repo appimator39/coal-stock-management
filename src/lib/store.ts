@@ -1,5 +1,10 @@
 import { DailyRecord, PurchaseRecord, PurchaseOrder, Vendor, Item } from "./types";
 
+export function resetAllData() {
+  const keys = ["coal_daily_records", "coal_purchase_records", "coal_opening_balance", "coal_vendors", "coal_purchase_orders", "coal_items"];
+  keys.forEach((k) => localStorage.removeItem(k));
+}
+
 const DAILY_KEY = "coal_daily_records";
 const PURCHASE_KEY = "coal_purchase_records";
 const OPENING_KEY = "coal_opening_balance";
