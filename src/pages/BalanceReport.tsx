@@ -2,11 +2,12 @@ import { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { getDailyRecords, getPurchaseRecords, getOpeningBalance, setOpeningBalance } from "@/lib/store";
-import { Package, TrendingDown, TrendingUp, Scale, BarChart3 } from "lucide-react";
+import { getDailyRecords, getPurchaseRecords, getOpeningBalance, setOpeningBalance, resetAllData } from "@/lib/store";
+import { Package, TrendingDown, TrendingUp, Scale, BarChart3, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import StatCard from "@/components/StatCard";
 import { toast } from "sonner";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 export default function BalanceReport() {
   const [opening, setOpening] = useState(getOpeningBalance());
