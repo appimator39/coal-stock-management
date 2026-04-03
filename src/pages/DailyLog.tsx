@@ -118,7 +118,7 @@ export default function DailyLog() {
                   No items. <a href="/items" className="text-primary underline">Add items</a> first.
                 </p>
               ) : (
-                <Select value={selectedItem} onValueChange={setSelectedItem}>
+                <Select value={selectedItem} onValueChange={(val) => { setSelectedItem(val); setCostPerTon(""); }}>
                   <SelectTrigger className="mt-1.5">
                     <SelectValue placeholder="Select coal type" />
                   </SelectTrigger>
