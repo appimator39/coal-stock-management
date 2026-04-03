@@ -8,6 +8,7 @@ const links = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/daily-log", label: "Daily Log", icon: CalendarDays },
   { to: "/vendors", label: "Vendors", icon: Users },
+  { to: "/items", label: "Items", icon: Package },
   { to: "/purchase-orders", label: "Purchase Orders", icon: ClipboardList },
   { to: "/purchases", label: "Purchases", icon: ShoppingCart },
   { to: "/balance", label: "Balance Report", icon: BarChart3 },
