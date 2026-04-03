@@ -23,16 +23,28 @@ export default function DailyLog() {
 
   const availableItems = getItems();
 
-  // Calculate weighted average purchase rate
-  const avgPurchaseRate = useMemo(() => {
+  // Calculate weighted average purchase rate per item
+  const purchaseRateByItem = useMemo(() => {
     const purchases = getPurchaseRecords();
-    if (purchases.length === 0) return 0;
-    const totalQty = purchases.reduce((s, p) => s + p.quantity, 0);
-    const totalAmount = purchases.reduce((s, p) => s + p.totalAmount, 0);
-    return totalQty > 0 ? totalAmount / totalQty : 0;
+    const map = new Map<string, { totalQty: number; totalAmount: number }>();
+    purchases.forEach((p) => {
+      const item = p.item || "Unspecified";
+      const e = map.get(item) || { totalQty: 0, totalAmount: 0 };
+      e.totalQty += p.quantity;
+      e.totalAmount += p.totalAmount;
+      map.set(item, e);
+    });
+    const result: Record<string, number> = {};
+    map.forEach((v, k) => {
+      if (v.totalQty > 0) result[k] = v.totalAmount / v.totalQty;
+    });
+    return result;
   }, [records]);
 
-  const effectiveCostPerTon = costPerTon !== "" ? costPerTon : (avgPurchaseRate > 0 ? avgPurchaseRate.toFixed(2) : "");
+  // Get rate for selected item
+  const selectedItemName = availableItems.find((i) => i.id === selectedItem)?.name || "";
+  const itemRate = selectedItemName ? (purchaseRateByItem[selectedItemName] || 0) : 0;
+  const effectiveCostPerTon = costPerTon !== "" ? costPerTon : (itemRate > 0 ? itemRate.toFixed(2) : "");
 
   const handleAdd = () => {
     if (!date || !selectedItem || !coalConsumed || !steamProduced || !effectiveCostPerTon) {
@@ -131,13 +143,13 @@ export default function DailyLog() {
             <div>
               <div className="flex items-center gap-1.5">
                 <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Cost per Ton (Rs)</Label>
-                {avgPurchaseRate > 0 && (
+                {itemRate > 0 && (
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p className="text-xs">Auto-calculated from weighted avg. purchase rate: Rs {avgPurchaseRate.toFixed(2)}/ton</p>
+                      <p className="text-xs">Avg. purchase rate for {selectedItemName}: Rs {itemRate.toFixed(2)}/ton</p>
                     </TooltipContent>
                   </Tooltip>
                 )}
@@ -147,10 +159,10 @@ export default function DailyLog() {
                 value={effectiveCostPerTon}
                 onChange={(e) => setCostPerTon(e.target.value)}
                 className="mt-1.5"
-                placeholder={avgPurchaseRate > 0 ? `Avg: Rs ${avgPurchaseRate.toFixed(2)}` : "0.00"}
+                placeholder={itemRate > 0 ? `Avg: Rs ${itemRate.toFixed(2)}` : "0.00"}
               />
-              {avgPurchaseRate > 0 && costPerTon === "" && (
-                <p className="text-[10px] text-success mt-1 font-medium">Auto-filled from avg. purchase rate</p>
+              {itemRate > 0 && costPerTon === "" && (
+                <p className="text-[10px] text-success mt-1 font-medium">Auto-filled from {selectedItemName} avg. rate</p>
               )}
             </div>
           </div>
