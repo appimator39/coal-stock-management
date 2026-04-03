@@ -151,6 +151,7 @@ export default function BalanceReport() {
         </div>
       )}
 
+      <div className="content-card">
         <div className="content-card-header">
           <h2 className="font-heading font-semibold text-sm">Date-wise Balance</h2>
           <span className="text-xs text-muted-foreground">{dateEntries.length} entries</span>
