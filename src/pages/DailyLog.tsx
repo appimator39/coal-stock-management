@@ -135,7 +135,7 @@ export default function DailyLog() {
               <Input type="number" value={coalConsumed} onChange={(e) => setCoalConsumed(e.target.value)} className="mt-1.5" placeholder="0.00" />
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
             <div>
               <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Steam Produced (tons)</Label>
               <Input type="number" value={steamProduced} onChange={(e) => setSteamProduced(e.target.value)} className="mt-1.5" placeholder="0.00" />
