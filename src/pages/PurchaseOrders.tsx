@@ -8,7 +8,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { getPurchaseOrders, savePurchaseOrder, deletePurchaseOrder, getVendors } from "@/lib/store";
+import { getPurchaseOrders, savePurchaseOrder, deletePurchaseOrder, getVendors, getItems } from "@/lib/store";
 import { PurchaseOrder } from "@/lib/types";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -16,9 +16,10 @@ import { Badge } from "@/components/ui/badge";
 export default function PurchaseOrders() {
   const [orders, setOrders] = useState<PurchaseOrder[]>(getPurchaseOrders());
   const vendors = getVendors();
+  const availableItems = getItems();
   const [date, setDate] = useState<Date>();
   const [vendorId, setVendorId] = useState("");
-  const [item, setItem] = useState("");
+  const [itemId, setItemId] = useState("");
   const [quantity, setQuantity] = useState("");
   const [pricePerTon, setPricePerTon] = useState("");
 
@@ -31,7 +32,7 @@ export default function PurchaseOrders() {
   };
 
   const handleAdd = () => {
-    if (!date || !vendorId || !item.trim() || !quantity || !pricePerTon) {
+    if (!date || !vendorId || !itemId || !quantity || !pricePerTon) {
       toast.error("Please fill all fields");
       return;
     }
@@ -41,12 +42,13 @@ export default function PurchaseOrders() {
       toast.error("Please enter valid numbers");
       return;
     }
+    const selectedItem = availableItems.find((i) => i.id === itemId);
     const po: PurchaseOrder = {
       id: crypto.randomUUID(),
       poNumber: generatePONumber(),
       date: format(date, "yyyy-MM-dd"),
       vendorId,
-      item: item.trim(),
+      item: selectedItem?.name || "",
       quantity: qty,
       pricePerTon: price,
       totalAmount: qty * price,
@@ -56,7 +58,7 @@ export default function PurchaseOrders() {
     setOrders(getPurchaseOrders());
     setDate(undefined);
     setVendorId("");
-    setItem("");
+    setItemId("");
     setQuantity("");
     setPricePerTon("");
     toast.success(`Purchase Order ${po.poNumber} created`);
@@ -160,7 +162,22 @@ export default function PurchaseOrders() {
                 </div>
                 <div>
                   <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Item</Label>
-                  <Input value={item} onChange={(e) => setItem(e.target.value)} className="mt-1.5" placeholder="e.g. Bituminous Coal" />
+                  {availableItems.length === 0 ? (
+                    <p className="mt-1.5 text-sm text-muted-foreground">
+                      No items. <a href="/items" className="text-primary underline">Add items</a> first.
+                    </p>
+                  ) : (
+                    <Select value={itemId} onValueChange={setItemId}>
+                      <SelectTrigger className="mt-1.5">
+                        <SelectValue placeholder="Select item" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableItems.map((i) => (
+                          <SelectItem key={i.id} value={i.id}>{i.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
