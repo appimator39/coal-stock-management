@@ -58,7 +58,7 @@ export default function PurchaseOrders() {
     setOrders(getPurchaseOrders());
     setDate(undefined);
     setVendorId("");
-    setItem("");
+    setItemId("");
     setQuantity("");
     setPricePerTon("");
     toast.success(`Purchase Order ${po.poNumber} created`);
