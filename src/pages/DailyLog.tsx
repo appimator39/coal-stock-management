@@ -1,15 +1,16 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, Plus, Trash2, CalendarDays } from "lucide-react";
+import { CalendarIcon, Plus, Trash2, CalendarDays, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { getDailyRecords, saveDailyRecord, deleteDailyRecord } from "@/lib/store";
+import { getDailyRecords, saveDailyRecord, deleteDailyRecord, getPurchaseRecords } from "@/lib/store";
 import { DailyRecord } from "@/lib/types";
 import { toast } from "sonner";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function DailyLog() {
   const [records, setRecords] = useState<DailyRecord[]>(getDailyRecords());
@@ -17,6 +18,18 @@ export default function DailyLog() {
   const [coalConsumed, setCoalConsumed] = useState("");
   const [steamProduced, setSteamProduced] = useState("");
   const [costPerTon, setCostPerTon] = useState("");
+
+  // Calculate weighted average purchase rate
+  const avgPurchaseRate = useMemo(() => {
+    const purchases = getPurchaseRecords();
+    if (purchases.length === 0) return 0;
+    const totalQty = purchases.reduce((s, p) => s + p.quantity, 0);
+    const totalAmount = purchases.reduce((s, p) => s + p.totalAmount, 0);
+    return totalQty > 0 ? totalAmount / totalQty : 0;
+  }, [records]); // recalc when records change (after add/delete triggers re-render)
+
+  // Auto-fill cost per ton when user hasn't manually entered one
+  const effectiveCostPerTon = costPerTon !== "" ? costPerTon : (avgPurchaseRate > 0 ? avgPurchaseRate.toFixed(2) : "");
 
   const handleAdd = () => {
     if (!date || !coalConsumed || !steamProduced || !costPerTon) {
