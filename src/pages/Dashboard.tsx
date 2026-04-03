@@ -1,16 +1,20 @@
-import { Flame, CloudCog, Wallet, Package, CalendarDays, ArrowRight } from "lucide-react";
+import { Flame, CloudCog, Wallet, Package, CalendarDays, ArrowRight, Calendar, TrendingUp } from "lucide-react";
 import { Link } from "react-router-dom";
 import StatCard from "@/components/StatCard";
 import { getDailyRecords, getPurchaseRecords, getOpeningBalance, flattenDailyItems } from "@/lib/store";
 import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 
 export default function Dashboard() {
   const daily = getDailyRecords();
   const purchases = getPurchaseRecords();
   const opening = getOpeningBalance();
   const flatItems = useMemo(() => flattenDailyItems(daily), [daily]);
+
+  const today = format(new Date(), "yyyy-MM-dd");
+  const currentMonth = format(new Date(), "yyyy-MM");
 
   const stats = useMemo(() => {
     const totalConsumed = daily.reduce((s, r) => s + r.totalCoal, 0);
@@ -20,6 +24,26 @@ export default function Dashboard() {
     const balance = opening + totalPurchased - totalConsumed;
     return { totalConsumed, totalSteam, totalCost, totalPurchased, balance };
   }, [daily, purchases, opening]);
+
+  const todayStats = useMemo(() => {
+    const todayDaily = daily.filter((r) => r.date === today);
+    const todayPurchases = purchases.filter((p) => p.date === today);
+    return {
+      consumed: todayDaily.reduce((s, r) => s + r.totalCoal, 0),
+      steam: todayDaily.reduce((s, r) => s + r.steamProduced, 0),
+      purchased: todayPurchases.reduce((s, r) => s + r.quantity, 0),
+    };
+  }, [daily, purchases, today]);
+
+  const monthStats = useMemo(() => {
+    const monthDaily = daily.filter((r) => r.date.startsWith(currentMonth));
+    const monthPurchases = purchases.filter((p) => p.date.startsWith(currentMonth));
+    return {
+      consumed: monthDaily.reduce((s, r) => s + r.totalCoal, 0),
+      steam: monthDaily.reduce((s, r) => s + r.steamProduced, 0),
+      purchased: monthPurchases.reduce((s, r) => s + r.quantity, 0),
+    };
+  }, [daily, purchases, currentMonth]);
 
   const itemBalances = useMemo(() => {
     const map = new Map<string, { purchased: number; consumed: number }>();
@@ -47,11 +71,69 @@ export default function Dashboard() {
         <p className="page-subtitle">Overview of coal consumption and production metrics</p>
       </div>
 
+      {/* Overall Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard title="Coal Consumed" value={stats.totalConsumed.toFixed(1)} unit="tons" icon={Flame} variant="primary" />
-        <StatCard title="Steam Produced" value={stats.totalSteam.toFixed(1)} unit="tons" icon={CloudCog} variant="success" />
+        <StatCard title="Total Coal Consumed" value={stats.totalConsumed.toFixed(1)} unit="tons" icon={Flame} variant="primary" />
+        <StatCard title="Total Steam Produced" value={stats.totalSteam.toFixed(1)} unit="tons" icon={CloudCog} variant="success" />
         <StatCard title="Total Cost" value={`Rs ${stats.totalCost.toFixed(2)}`} icon={Wallet} variant="warning" />
         <StatCard title="Coal Balance" value={stats.balance.toFixed(1)} unit="tons" icon={Package} />
+      </div>
+
+      {/* Today & Monthly Stats */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
+        <div className="content-card">
+          <div className="content-card-header">
+            <h2 className="font-heading font-semibold text-sm flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-primary" /> Today ({format(new Date(), "dd MMM yyyy")})
+            </h2>
+          </div>
+          <div className="content-card-body">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Consumed</p>
+                <p className="text-xl font-heading font-bold text-primary">{todayStats.consumed.toFixed(1)}</p>
+                <p className="text-xs text-muted-foreground">tons</p>
+              </div>
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Steam</p>
+                <p className="text-xl font-heading font-bold text-success">{todayStats.steam.toFixed(1)}</p>
+                <p className="text-xs text-muted-foreground">tons</p>
+              </div>
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Purchased</p>
+                <p className="text-xl font-heading font-bold text-warning">{todayStats.purchased.toFixed(1)}</p>
+                <p className="text-xs text-muted-foreground">tons</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="content-card">
+          <div className="content-card-header">
+            <h2 className="font-heading font-semibold text-sm flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-success" /> This Month ({format(new Date(), "MMMM yyyy")})
+            </h2>
+          </div>
+          <div className="content-card-body">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Consumed</p>
+                <p className="text-xl font-heading font-bold text-primary">{monthStats.consumed.toFixed(1)}</p>
+                <p className="text-xs text-muted-foreground">tons</p>
+              </div>
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Steam</p>
+                <p className="text-xl font-heading font-bold text-success">{monthStats.steam.toFixed(1)}</p>
+                <p className="text-xs text-muted-foreground">tons</p>
+              </div>
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Purchased</p>
+                <p className="text-xl font-heading font-bold text-warning">{monthStats.purchased.toFixed(1)}</p>
+                <p className="text-xs text-muted-foreground">tons</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {itemBalances.length > 0 && (
