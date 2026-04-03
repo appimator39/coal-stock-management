@@ -7,6 +7,7 @@ import AppLayout from "./components/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import DailyLog from "./pages/DailyLog";
 import Vendors from "./pages/Vendors";
+import Items from "./pages/Items";
 import PurchaseOrders from "./pages/PurchaseOrders";
 import Purchases from "./pages/Purchases";
 import BalanceReport from "./pages/BalanceReport";
