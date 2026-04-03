@@ -1,4 +1,4 @@
-import { DailyRecord, PurchaseRecord, PurchaseOrder, Vendor } from "./types";
+import { DailyRecord, PurchaseRecord, PurchaseOrder, Vendor, Item } from "./types";
 
 const DAILY_KEY = "coal_daily_records";
 const PURCHASE_KEY = "coal_purchase_records";
