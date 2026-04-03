@@ -23,16 +23,28 @@ export default function DailyLog() {
 
   const availableItems = getItems();
 
-  // Calculate weighted average purchase rate
-  const avgPurchaseRate = useMemo(() => {
+  // Calculate weighted average purchase rate per item
+  const purchaseRateByItem = useMemo(() => {
     const purchases = getPurchaseRecords();
-    if (purchases.length === 0) return 0;
-    const totalQty = purchases.reduce((s, p) => s + p.quantity, 0);
-    const totalAmount = purchases.reduce((s, p) => s + p.totalAmount, 0);
-    return totalQty > 0 ? totalAmount / totalQty : 0;
+    const map = new Map<string, { totalQty: number; totalAmount: number }>();
+    purchases.forEach((p) => {
+      const item = p.item || "Unspecified";
+      const e = map.get(item) || { totalQty: 0, totalAmount: 0 };
+      e.totalQty += p.quantity;
+      e.totalAmount += p.totalAmount;
+      map.set(item, e);
+    });
+    const result: Record<string, number> = {};
+    map.forEach((v, k) => {
+      if (v.totalQty > 0) result[k] = v.totalAmount / v.totalQty;
+    });
+    return result;
   }, [records]);
 
-  const effectiveCostPerTon = costPerTon !== "" ? costPerTon : (avgPurchaseRate > 0 ? avgPurchaseRate.toFixed(2) : "");
+  // Get rate for selected item
+  const selectedItemName = availableItems.find((i) => i.id === selectedItem)?.name || "";
+  const itemRate = selectedItemName ? (purchaseRateByItem[selectedItemName] || 0) : 0;
+  const effectiveCostPerTon = costPerTon !== "" ? costPerTon : (itemRate > 0 ? itemRate.toFixed(2) : "");
 
   const handleAdd = () => {
     if (!date || !selectedItem || !coalConsumed || !steamProduced || !effectiveCostPerTon) {
