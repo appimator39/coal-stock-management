@@ -162,7 +162,22 @@ export default function PurchaseOrders() {
                 </div>
                 <div>
                   <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Item</Label>
-                  <Input value={item} onChange={(e) => setItem(e.target.value)} className="mt-1.5" placeholder="e.g. Bituminous Coal" />
+                  {availableItems.length === 0 ? (
+                    <p className="mt-1.5 text-sm text-muted-foreground">
+                      No items. <a href="/items" className="text-primary underline">Add items</a> first.
+                    </p>
+                  ) : (
+                    <Select value={itemId} onValueChange={setItemId}>
+                      <SelectTrigger className="mt-1.5">
+                        <SelectValue placeholder="Select item" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableItems.map((i) => (
+                          <SelectItem key={i.id} value={i.id}>{i.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
