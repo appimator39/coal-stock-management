@@ -103,8 +103,8 @@ export default function Purchases() {
                   <th className="pb-2 font-medium">Date</th>
                   <th className="pb-2 font-medium">Vendor</th>
                   <th className="pb-2 font-medium">Qty (tons)</th>
-                  <th className="pb-2 font-medium">Price/Ton (₹)</th>
-                  <th className="pb-2 font-medium">Total (₹)</th>
+                   <th className="pb-2 font-medium">Price/Ton (PKR)</th>
+                   <th className="pb-2 font-medium">Total (PKR)</th>
                   <th className="pb-2 font-medium"></th>
                 </tr>
               </thead>
