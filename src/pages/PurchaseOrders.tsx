@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { format, parse, isWithinInterval, startOfDay, endOfDay } from "date-fns";
-import { CalendarIcon, Plus, Trash2, CheckCircle2, Download, ClipboardList } from "lucide-react";
+import { CalendarIcon, Plus, Trash2, CheckCircle2, Download, ClipboardList, Eye, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +12,7 @@ import { getPurchaseOrders, savePurchaseOrder, deletePurchaseOrder, getVendors, 
 import { PurchaseOrder } from "@/lib/types";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import PODetailModal from "@/components/PODetailModal";
 
 export default function PurchaseOrders() {
   const [orders, setOrders] = useState<PurchaseOrder[]>(getPurchaseOrders());
@@ -25,6 +26,8 @@ export default function PurchaseOrders() {
 
   const [exportFrom, setExportFrom] = useState<Date>();
   const [exportTo, setExportTo] = useState<Date>();
+  const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
   const generatePONumber = () => {
     const count = getPurchaseOrders().length + 1;
@@ -273,7 +276,7 @@ export default function PurchaseOrders() {
                     <th>Price/Ton (Rs)</th>
                     <th>Total (Rs)</th>
                     <th>Status</th>
-                    <th className="w-10"></th>
+                    <th className="w-28"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -294,11 +297,22 @@ export default function PurchaseOrders() {
                         </Badge>
                       </td>
                       <td>
-                        {o.status === "pending" && (
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(o.id)}>
-                            <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            title="View Details"
+                            onClick={() => { setSelectedPO(o); setModalOpen(true); }}
+                          >
+                            <Eye className="w-3.5 h-3.5 text-muted-foreground" />
                           </Button>
-                        )}
+                          {o.status === "pending" && (
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(o.id)}>
+                              <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                            </Button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -308,6 +322,13 @@ export default function PurchaseOrders() {
           )}
         </div>
       </div>
+
+      <PODetailModal
+        po={selectedPO}
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        vendorName={selectedPO ? getVendorName(selectedPO.vendorId) : ""}
+      />
     </div>
   );
 }
