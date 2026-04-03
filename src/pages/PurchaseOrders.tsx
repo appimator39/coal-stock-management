@@ -8,7 +8,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { getPurchaseOrders, savePurchaseOrder, deletePurchaseOrder, getVendors } from "@/lib/store";
+import { getPurchaseOrders, savePurchaseOrder, deletePurchaseOrder, getVendors, getItems } from "@/lib/store";
 import { PurchaseOrder } from "@/lib/types";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
