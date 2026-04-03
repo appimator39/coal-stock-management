@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, Plus, Trash2 } from "lucide-react";
+import { CalendarIcon, Plus, Trash2, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -55,79 +55,99 @@ export default function DailyLog() {
 
   return (
     <div>
-      <h1 className="text-2xl font-heading font-bold mb-6">Daily Coal & Steam Log</h1>
+      <div className="page-header">
+        <h1 className="page-title">Daily Coal & Steam Log</h1>
+        <p className="page-subtitle">Record daily coal consumption and steam production</p>
+      </div>
 
-      <div className="bg-card rounded-xl border p-5 mb-6">
-        <h2 className="font-heading font-semibold mb-4">Add New Entry</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
-          <div>
-            <Label>Date</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className={cn("w-full justify-start text-left font-normal mt-1", !date && "text-muted-foreground")}>
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {date ? format(date, "PPP") : "Pick date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="single" selected={date} onSelect={setDate} initialFocus className="p-3 pointer-events-auto" />
-              </PopoverContent>
-            </Popover>
+      <div className="form-section">
+        <div className="form-section-header">
+          <h2 className="font-heading font-semibold text-sm">Add New Entry</h2>
+        </div>
+        <div className="form-section-body">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <div>
+              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("w-full justify-start text-left font-normal mt-1.5", !date && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {date ? format(date, "PPP") : "Pick date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={date} onSelect={setDate} initialFocus className="p-3 pointer-events-auto" />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div>
+              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Coal Consumed (tons)</Label>
+              <Input type="number" value={coalConsumed} onChange={(e) => setCoalConsumed(e.target.value)} className="mt-1.5" placeholder="0.00" />
+            </div>
           </div>
-          <div>
-            <Label>Coal Consumed (tons)</Label>
-            <Input type="number" value={coalConsumed} onChange={(e) => setCoalConsumed(e.target.value)} className="mt-1" placeholder="0" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+            <div>
+              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Steam Produced (tons)</Label>
+              <Input type="number" value={steamProduced} onChange={(e) => setSteamProduced(e.target.value)} className="mt-1.5" placeholder="0.00" />
+            </div>
+            <div>
+              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Cost per Ton (Rs)</Label>
+              <Input type="number" value={costPerTon} onChange={(e) => setCostPerTon(e.target.value)} className="mt-1.5" placeholder="0.00" />
+            </div>
           </div>
-          <div>
-            <Label>Steam Produced (tons)</Label>
-            <Input type="number" value={steamProduced} onChange={(e) => setSteamProduced(e.target.value)} className="mt-1" placeholder="0" />
-          </div>
-          <div>
-            <Label>Cost per Ton (Rs)</Label>
-            <Input type="number" value={costPerTon} onChange={(e) => setCostPerTon(e.target.value)} className="mt-1" placeholder="0" />
-          </div>
-          <Button onClick={handleAdd} className="mt-1">
-            <Plus className="w-4 h-4 mr-1" /> Add Entry
+          <Button onClick={handleAdd} className="w-full sm:w-auto">
+            <Plus className="w-4 h-4 mr-2" /> Add Entry
           </Button>
         </div>
       </div>
 
-      <div className="bg-card rounded-xl border p-5">
-        <h2 className="font-heading font-semibold mb-4">Records</h2>
-        {records.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No records yet.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-muted-foreground">
-                  <th className="pb-2 font-medium">Date</th>
-                  <th className="pb-2 font-medium">Coal (tons)</th>
-                  <th className="pb-2 font-medium">Steam (tons)</th>
-                   <th className="pb-2 font-medium">Cost/Ton (Rs)</th>
-                   <th className="pb-2 font-medium">Total Cost (Rs)</th>
-                  <th className="pb-2 font-medium"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {[...records].reverse().map((r) => (
-                  <tr key={r.id} className="border-b last:border-0">
-                    <td className="py-2.5">{r.date}</td>
-                    <td className="py-2.5">{r.coalConsumed}</td>
-                    <td className="py-2.5">{r.steamProduced}</td>
-                    <td className="py-2.5">Rs {r.costPerTon}</td>
-                    <td className="py-2.5">Rs {r.totalCost.toLocaleString()}</td>
-                    <td className="py-2.5">
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete(r.id)}>
-                        <Trash2 className="w-4 h-4 text-destructive" />
-                      </Button>
-                    </td>
+      <div className="content-card">
+        <div className="content-card-header">
+          <h2 className="font-heading font-semibold text-sm">Records</h2>
+          <span className="text-xs text-muted-foreground">{records.length} entries</span>
+        </div>
+        <div className="content-card-body p-0">
+          {records.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-state-icon">
+                <CalendarDays className="w-5 h-5 text-muted-foreground" />
+              </div>
+              <p className="empty-state-title">No records yet</p>
+              <p className="empty-state-text">Add your first daily entry using the form above.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Coal (tons)</th>
+                    <th>Steam (tons)</th>
+                    <th>Cost/Ton (Rs)</th>
+                    <th>Total Cost (Rs)</th>
+                    <th className="w-10"></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                </thead>
+                <tbody>
+                  {[...records].reverse().map((r) => (
+                    <tr key={r.id}>
+                      <td className="font-medium">{r.date}</td>
+                      <td>{r.coalConsumed}</td>
+                      <td>{r.steamProduced}</td>
+                      <td>Rs {r.costPerTon}</td>
+                      <td className="font-medium">Rs {r.totalCost.toLocaleString()}</td>
+                      <td>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(r.id)}>
+                          <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

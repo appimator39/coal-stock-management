@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { getDailyRecords, getPurchaseRecords, getOpeningBalance, setOpeningBalance } from "@/lib/store";
-import { Package, TrendingDown, TrendingUp, Scale } from "lucide-react";
+import { Package, TrendingDown, TrendingUp, Scale, BarChart3 } from "lucide-react";
 import StatCard from "@/components/StatCard";
 import { toast } from "sonner";
 
@@ -31,7 +31,6 @@ export default function BalanceReport() {
     toast.success("Opening balance updated");
   };
 
-  // Build date-wise running balance
   const dateEntries = useMemo(() => {
     const map = new Map<string, { purchased: number; consumed: number }>();
     purchases.forEach((p) => {
@@ -54,54 +53,72 @@ export default function BalanceReport() {
 
   return (
     <div>
-      <h1 className="text-2xl font-heading font-bold mb-6">Balance Report</h1>
+      <div className="page-header">
+        <h1 className="page-title">Balance Report</h1>
+        <p className="page-subtitle">Track coal inventory with running balance calculations</p>
+      </div>
 
-      <div className="bg-card rounded-xl border p-5 mb-6">
-        <h2 className="font-heading font-semibold mb-3">Opening Balance</h2>
-        <div className="flex items-end gap-3">
-          <div>
-            <Label>Coal in stock (tons)</Label>
-            <Input type="number" value={openingInput} onChange={(e) => setOpeningInput(e.target.value)} className="mt-1 w-48" />
+      <div className="form-section">
+        <div className="form-section-header">
+          <h2 className="font-heading font-semibold text-sm">Opening Balance</h2>
+        </div>
+        <div className="form-section-body">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3">
+            <div className="max-w-xs">
+              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Coal in stock (tons)</Label>
+              <Input type="number" value={openingInput} onChange={(e) => setOpeningInput(e.target.value)} className="mt-1.5" />
+            </div>
+            <Button onClick={handleSaveOpening}>Save Balance</Button>
           </div>
-          <Button onClick={handleSaveOpening}>Save</Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard title="Opening Balance" value={opening.toFixed(1)} unit="tons" icon={Package} />
         <StatCard title="Total Purchased" value={summary.totalPurchased.toFixed(1)} unit="tons" icon={TrendingUp} variant="success" />
         <StatCard title="Total Consumed" value={summary.totalConsumed.toFixed(1)} unit="tons" icon={TrendingDown} variant="primary" />
         <StatCard title="Closing Balance" value={summary.closing.toFixed(1)} unit="tons" icon={Scale} variant={summary.closing < 0 ? "warning" : "default"} />
       </div>
 
-      <div className="bg-card rounded-xl border p-5">
-        <h2 className="font-heading font-semibold mb-4">Date-wise Balance</h2>
-        {dateEntries.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No data available.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-muted-foreground">
-                  <th className="pb-2 font-medium">Date</th>
-                  <th className="pb-2 font-medium">Purchased (tons)</th>
-                  <th className="pb-2 font-medium">Consumed (tons)</th>
-                  <th className="pb-2 font-medium">Running Balance (tons)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {dateEntries.map((e) => (
-                  <tr key={e.date} className="border-b last:border-0">
-                    <td className="py-2.5">{e.date}</td>
-                    <td className="py-2.5 text-success">{e.purchased > 0 ? `+${e.purchased}` : "—"}</td>
-                    <td className="py-2.5 text-primary">{e.consumed > 0 ? `-${e.consumed}` : "—"}</td>
-                    <td className={`py-2.5 font-semibold ${e.balance < 0 ? "text-destructive" : ""}`}>{e.balance.toFixed(1)}</td>
+      <div className="content-card">
+        <div className="content-card-header">
+          <h2 className="font-heading font-semibold text-sm">Date-wise Balance</h2>
+          <span className="text-xs text-muted-foreground">{dateEntries.length} entries</span>
+        </div>
+        <div className="content-card-body p-0">
+          {dateEntries.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-state-icon">
+                <BarChart3 className="w-5 h-5 text-muted-foreground" />
+              </div>
+              <p className="empty-state-title">No data available</p>
+              <p className="empty-state-text">Add daily log entries and purchases to see the running balance.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Purchased (tons)</th>
+                    <th>Consumed (tons)</th>
+                    <th>Running Balance (tons)</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                </thead>
+                <tbody>
+                  {dateEntries.map((e) => (
+                    <tr key={e.date}>
+                      <td className="font-medium">{e.date}</td>
+                      <td className="text-success font-medium">{e.purchased > 0 ? `+${e.purchased}` : "—"}</td>
+                      <td className="text-primary font-medium">{e.consumed > 0 ? `-${e.consumed}` : "—"}</td>
+                      <td className={cn("font-bold", e.balance < 0 ? "text-destructive" : "text-foreground")}>{e.balance.toFixed(1)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

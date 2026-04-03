@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { format, parse, isWithinInterval, startOfDay, endOfDay } from "date-fns";
-import { CalendarIcon, Plus, Trash2, CheckCircle2, Download } from "lucide-react";
+import { CalendarIcon, Plus, Trash2, CheckCircle2, Download, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,7 +22,6 @@ export default function PurchaseOrders() {
   const [quantity, setQuantity] = useState("");
   const [pricePerTon, setPricePerTon] = useState("");
 
-  // Export filters
   const [exportFrom, setExportFrom] = useState<Date>();
   const [exportTo, setExportTo] = useState<Date>();
 
@@ -109,160 +108,188 @@ export default function PurchaseOrders() {
 
   return (
     <div>
-      <h1 className="text-2xl font-heading font-bold mb-6">Purchase Orders</h1>
-
-      <div className="bg-card rounded-xl border p-5 mb-6">
-        <h2 className="font-heading font-semibold mb-4">Create New Purchase Order</h2>
-        {vendors.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            No vendors found. Please <a href="/vendors" className="text-primary underline">add vendors</a> first.
-          </p>
-        ) : (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div>
-                <Label>Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal mt-1", !date && "text-muted-foreground")}>
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {date ? format(date, "PPP") : "Pick date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar mode="single" selected={date} onSelect={setDate} initialFocus className="p-3 pointer-events-auto" />
-                  </PopoverContent>
-                </Popover>
-              </div>
-              <div>
-                <Label>Vendor</Label>
-                <Select value={vendorId} onValueChange={setVendorId}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Select vendor" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {vendors.map((v) => (
-                      <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Item</Label>
-                <Input value={item} onChange={(e) => setItem(e.target.value)} className="mt-1" placeholder="e.g. Bituminous Coal" />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
-              <div>
-                <Label>Quantity (tons)</Label>
-                <Input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="mt-1" placeholder="0" />
-              </div>
-              <div>
-                <Label>Price/Ton (Rs)</Label>
-                <Input type="number" value={pricePerTon} onChange={(e) => setPricePerTon(e.target.value)} className="mt-1" placeholder="0" />
-              </div>
-              <Button onClick={handleAdd} className="mt-1">
-                <Plus className="w-4 h-4 mr-1" /> Create PO
-              </Button>
-            </div>
-          </div>
-        )}
+      <div className="page-header">
+        <h1 className="page-title">Purchase Orders</h1>
+        <p className="page-subtitle">Create and manage purchase orders for coal procurement</p>
       </div>
 
-      {/* Export Section */}
-      <div className="bg-card rounded-xl border p-5 mb-6">
-        <h2 className="font-heading font-semibold mb-4">Export Orders</h2>
-        <div className="flex flex-wrap items-end gap-4">
-          <div>
-            <Label>From Date</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className={cn("w-full justify-start text-left font-normal mt-1 min-w-[180px]", !exportFrom && "text-muted-foreground")}>
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {exportFrom ? format(exportFrom, "PPP") : "Start date"}
+      <div className="form-section">
+        <div className="form-section-header">
+          <h2 className="font-heading font-semibold text-sm">Create New Purchase Order</h2>
+        </div>
+        <div className="form-section-body">
+          {vendors.length === 0 ? (
+            <div className="empty-state py-8">
+              <div className="empty-state-icon">
+                <ClipboardList className="w-5 h-5 text-muted-foreground" />
+              </div>
+              <p className="empty-state-title">No vendors available</p>
+              <p className="empty-state-text">
+                Please <a href="/vendors" className="text-primary underline font-medium">add vendors</a> first to create purchase orders.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn("w-full justify-start text-left font-normal mt-1.5", !date && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {date ? format(date, "PPP") : "Pick date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar mode="single" selected={date} onSelect={setDate} initialFocus className="p-3 pointer-events-auto" />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div>
+                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Vendor</Label>
+                  <Select value={vendorId} onValueChange={setVendorId}>
+                    <SelectTrigger className="mt-1.5">
+                      <SelectValue placeholder="Select vendor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {vendors.map((v) => (
+                        <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Item</Label>
+                  <Input value={item} onChange={(e) => setItem(e.target.value)} className="mt-1.5" placeholder="e.g. Bituminous Coal" />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+                <div>
+                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Quantity (tons)</Label>
+                  <Input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="mt-1.5" placeholder="0.00" />
+                </div>
+                <div>
+                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Price/Ton (Rs)</Label>
+                  <Input type="number" value={pricePerTon} onChange={(e) => setPricePerTon(e.target.value)} className="mt-1.5" placeholder="0.00" />
+                </div>
+                <Button onClick={handleAdd}>
+                  <Plus className="w-4 h-4 mr-2" /> Create PO
                 </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="single" selected={exportFrom} onSelect={setExportFrom} initialFocus className="p-3 pointer-events-auto" />
-              </PopoverContent>
-            </Popover>
-          </div>
-          <div>
-            <Label>To Date</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className={cn("w-full justify-start text-left font-normal mt-1 min-w-[180px]", !exportTo && "text-muted-foreground")}>
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {exportTo ? format(exportTo, "PPP") : "End date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="single" selected={exportTo} onSelect={setExportTo} initialFocus className="p-3 pointer-events-auto" />
-              </PopoverContent>
-            </Popover>
-          </div>
-          {(exportFrom || exportTo) && (
-            <Button variant="ghost" onClick={() => { setExportFrom(undefined); setExportTo(undefined); }}>
-              Clear
-            </Button>
+              </div>
+            </div>
           )}
-          <Button onClick={handleExportCSV} variant="secondary">
-            <Download className="w-4 h-4 mr-1" /> Export CSV
-          </Button>
-          <span className="text-sm text-muted-foreground">{filteredOrders.length} order(s)</span>
         </div>
       </div>
 
-      <div className="bg-card rounded-xl border p-5">
-        <h2 className="font-heading font-semibold mb-4">Purchase Orders</h2>
-        {filteredOrders.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No purchase orders found.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-muted-foreground">
-                  <th className="pb-2 font-medium">PO #</th>
-                  <th className="pb-2 font-medium">Date</th>
-                  <th className="pb-2 font-medium">Vendor</th>
-                  <th className="pb-2 font-medium">Item</th>
-                  <th className="pb-2 font-medium">Qty (tons)</th>
-                  <th className="pb-2 font-medium">Price/Ton (Rs)</th>
-                  <th className="pb-2 font-medium">Total (Rs)</th>
-                  <th className="pb-2 font-medium">Status</th>
-                  <th className="pb-2 font-medium"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {[...filteredOrders].reverse().map((o) => (
-                  <tr key={o.id} className="border-b last:border-0">
-                    <td className="py-2.5 font-mono text-xs">{o.poNumber}</td>
-                    <td className="py-2.5">{o.date}</td>
-                    <td className="py-2.5">{getVendorName(o.vendorId)}</td>
-                    <td className="py-2.5">{o.item || "—"}</td>
-                    <td className="py-2.5">{o.quantity}</td>
-                    <td className="py-2.5">Rs {o.pricePerTon}</td>
-                    <td className="py-2.5">Rs {o.totalAmount.toLocaleString()}</td>
-                    <td className="py-2.5">
-                      <Badge variant={o.status === "fulfilled" ? "default" : "secondary"}>
-                        {o.status === "fulfilled" ? (
-                          <span className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Fulfilled</span>
-                        ) : "Pending"}
-                      </Badge>
-                    </td>
-                    <td className="py-2.5">
-                      {o.status === "pending" && (
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(o.id)}>
-                          <Trash2 className="w-4 h-4 text-destructive" />
-                        </Button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {/* Export Section */}
+      <div className="content-card mb-6">
+        <div className="content-card-header">
+          <h2 className="font-heading font-semibold text-sm">Export Orders</h2>
+        </div>
+        <div className="content-card-body">
+          <div className="flex flex-wrap items-end gap-4">
+            <div>
+              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">From Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("w-full justify-start text-left font-normal mt-1.5 min-w-[180px]", !exportFrom && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {exportFrom ? format(exportFrom, "PPP") : "Start date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={exportFrom} onSelect={setExportFrom} initialFocus className="p-3 pointer-events-auto" />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div>
+              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">To Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("w-full justify-start text-left font-normal mt-1.5 min-w-[180px]", !exportTo && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {exportTo ? format(exportTo, "PPP") : "End date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={exportTo} onSelect={setExportTo} initialFocus className="p-3 pointer-events-auto" />
+                </PopoverContent>
+              </Popover>
+            </div>
+            {(exportFrom || exportTo) && (
+              <Button variant="ghost" size="sm" onClick={() => { setExportFrom(undefined); setExportTo(undefined); }}>
+                Clear
+              </Button>
+            )}
+            <Button onClick={handleExportCSV} variant="secondary">
+              <Download className="w-4 h-4 mr-2" /> Export CSV
+            </Button>
+            <span className="text-xs text-muted-foreground self-center">{filteredOrders.length} order(s)</span>
           </div>
-        )}
+        </div>
+      </div>
+
+      <div className="content-card">
+        <div className="content-card-header">
+          <h2 className="font-heading font-semibold text-sm">All Purchase Orders</h2>
+          <span className="text-xs text-muted-foreground">{filteredOrders.length} orders</span>
+        </div>
+        <div className="content-card-body p-0">
+          {filteredOrders.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-state-icon">
+                <ClipboardList className="w-5 h-5 text-muted-foreground" />
+              </div>
+              <p className="empty-state-title">No purchase orders found</p>
+              <p className="empty-state-text">Create your first purchase order using the form above.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>PO #</th>
+                    <th>Date</th>
+                    <th>Vendor</th>
+                    <th>Item</th>
+                    <th>Qty (tons)</th>
+                    <th>Price/Ton (Rs)</th>
+                    <th>Total (Rs)</th>
+                    <th>Status</th>
+                    <th className="w-10"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...filteredOrders].reverse().map((o) => (
+                    <tr key={o.id}>
+                      <td className="font-mono text-xs font-medium">{o.poNumber}</td>
+                      <td>{o.date}</td>
+                      <td className="font-medium">{getVendorName(o.vendorId)}</td>
+                      <td>{o.item || "—"}</td>
+                      <td>{o.quantity}</td>
+                      <td>Rs {o.pricePerTon}</td>
+                      <td className="font-medium">Rs {o.totalAmount.toLocaleString()}</td>
+                      <td>
+                        <Badge variant={o.status === "fulfilled" ? "default" : "secondary"} className="text-[10px]">
+                          {o.status === "fulfilled" ? (
+                            <span className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Fulfilled</span>
+                          ) : "Pending"}
+                        </Badge>
+                      </td>
+                      <td>
+                        {o.status === "pending" && (
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(o.id)}>
+                            <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
