@@ -104,8 +104,29 @@ export default function DailyLog() {
               <Input type="number" value={steamProduced} onChange={(e) => setSteamProduced(e.target.value)} className="mt-1.5" placeholder="0.00" />
             </div>
             <div>
-              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Cost per Ton (Rs)</Label>
-              <Input type="number" value={costPerTon} onChange={(e) => setCostPerTon(e.target.value)} className="mt-1.5" placeholder="0.00" />
+              <div className="flex items-center gap-1.5">
+                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Cost per Ton (Rs)</Label>
+                {avgPurchaseRate > 0 && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs">Auto-calculated from weighted avg. purchase rate: Rs {avgPurchaseRate.toFixed(2)}/ton</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
+              <Input
+                type="number"
+                value={effectiveCostPerTon}
+                onChange={(e) => setCostPerTon(e.target.value)}
+                className="mt-1.5"
+                placeholder={avgPurchaseRate > 0 ? `Avg: Rs ${avgPurchaseRate.toFixed(2)}` : "0.00"}
+              />
+              {avgPurchaseRate > 0 && costPerTon === "" && (
+                <p className="text-[10px] text-success mt-1 font-medium">Auto-filled from avg. purchase rate</p>
+              )}
             </div>
           </div>
           <Button onClick={handleAdd} className="w-full sm:w-auto">
