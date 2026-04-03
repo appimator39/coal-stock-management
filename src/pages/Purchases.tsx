@@ -51,6 +51,7 @@ export default function Purchases() {
       poId: selectedPO.id,
       poNumber: selectedPO.poNumber,
       vendor: getVendorName(selectedPO.vendorId),
+      item: selectedPO.item || "",
       quantity: qty,
       pricePerTon: selectedPO.pricePerTon,
       totalAmount: qty * selectedPO.pricePerTon,

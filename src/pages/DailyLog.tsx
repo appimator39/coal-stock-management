@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { getDailyRecords, saveDailyRecord, deleteDailyRecord, getPurchaseRecords } from "@/lib/store";
+import { getDailyRecords, saveDailyRecord, deleteDailyRecord, getPurchaseRecords, getItems } from "@/lib/store";
 import { DailyRecord } from "@/lib/types";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -15,9 +16,12 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 export default function DailyLog() {
   const [records, setRecords] = useState<DailyRecord[]>(getDailyRecords());
   const [date, setDate] = useState<Date>();
+  const [selectedItem, setSelectedItem] = useState("");
   const [coalConsumed, setCoalConsumed] = useState("");
   const [steamProduced, setSteamProduced] = useState("");
   const [costPerTon, setCostPerTon] = useState("");
+
+  const availableItems = getItems();
 
   // Calculate weighted average purchase rate
   const avgPurchaseRate = useMemo(() => {
@@ -26,13 +30,12 @@ export default function DailyLog() {
     const totalQty = purchases.reduce((s, p) => s + p.quantity, 0);
     const totalAmount = purchases.reduce((s, p) => s + p.totalAmount, 0);
     return totalQty > 0 ? totalAmount / totalQty : 0;
-  }, [records]); // recalc when records change (after add/delete triggers re-render)
+  }, [records]);
 
-  // Auto-fill cost per ton when user hasn't manually entered one
   const effectiveCostPerTon = costPerTon !== "" ? costPerTon : (avgPurchaseRate > 0 ? avgPurchaseRate.toFixed(2) : "");
 
   const handleAdd = () => {
-    if (!date || !coalConsumed || !steamProduced || !effectiveCostPerTon) {
+    if (!date || !selectedItem || !coalConsumed || !steamProduced || !effectiveCostPerTon) {
       toast.error("Please fill all fields");
       return;
     }
@@ -43,9 +46,11 @@ export default function DailyLog() {
       toast.error("Please enter valid numbers");
       return;
     }
+    const itemObj = availableItems.find((i) => i.id === selectedItem);
     const record: DailyRecord = {
       id: crypto.randomUUID(),
       date: format(date, "yyyy-MM-dd"),
+      item: itemObj?.name || "General",
       coalConsumed: coal,
       steamProduced: steam,
       costPerTon: cost,
@@ -54,6 +59,7 @@ export default function DailyLog() {
     saveDailyRecord(record);
     setRecords(getDailyRecords());
     setDate(undefined);
+    setSelectedItem("");
     setCoalConsumed("");
     setSteamProduced("");
     setCostPerTon("");
@@ -78,7 +84,7 @@ export default function DailyLog() {
           <h2 className="font-heading font-semibold text-sm">Add New Entry</h2>
         </div>
         <div className="form-section-body">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
             <div>
               <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Date</Label>
               <Popover>
@@ -92,6 +98,25 @@ export default function DailyLog() {
                   <Calendar mode="single" selected={date} onSelect={setDate} initialFocus className="p-3 pointer-events-auto" />
                 </PopoverContent>
               </Popover>
+            </div>
+            <div>
+              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Coal Item</Label>
+              {availableItems.length === 0 ? (
+                <p className="mt-1.5 text-sm text-muted-foreground">
+                  No items. <a href="/items" className="text-primary underline">Add items</a> first.
+                </p>
+              ) : (
+                <Select value={selectedItem} onValueChange={setSelectedItem}>
+                  <SelectTrigger className="mt-1.5">
+                    <SelectValue placeholder="Select coal type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableItems.map((i) => (
+                      <SelectItem key={i.id} value={i.id}>{i.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
             <div>
               <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Coal Consumed (tons)</Label>
@@ -155,6 +180,7 @@ export default function DailyLog() {
                 <thead>
                   <tr>
                     <th>Date</th>
+                    <th>Item</th>
                     <th>Coal (tons)</th>
                     <th>Steam (tons)</th>
                     <th>Cost/Ton (Rs)</th>
@@ -166,6 +192,7 @@ export default function DailyLog() {
                   {[...records].reverse().map((r) => (
                     <tr key={r.id}>
                       <td className="font-medium">{r.date}</td>
+                      <td>{r.item || "—"}</td>
                       <td>{r.coalConsumed}</td>
                       <td>{r.steamProduced}</td>
                       <td>Rs {r.costPerTon}</td>

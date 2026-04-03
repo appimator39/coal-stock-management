@@ -1,6 +1,7 @@
 export interface DailyRecord {
   id: string;
   date: string;
+  item: string; // coal item name
   coalConsumed: number; // tons
   steamProduced: number; // tons
   costPerTon: number;
@@ -25,6 +26,7 @@ export interface PurchaseRecord {
   poId: string;
   poNumber: string;
   vendor: string;
+  item: string; // coal item name
   quantity: number; // tons
   pricePerTon: number;
   totalAmount: number;
