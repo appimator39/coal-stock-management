@@ -4,6 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { getDailyRecords, getPurchaseRecords, getOpeningBalance, setOpeningBalance } from "@/lib/store";
 import { Package, TrendingDown, TrendingUp, Scale, BarChart3 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import StatCard from "@/components/StatCard";
 import { toast } from "sonner";
 
