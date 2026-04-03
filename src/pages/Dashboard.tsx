@@ -144,8 +144,8 @@ export default function Dashboard() {
                       <td>{r.item || "—"}</td>
                       <td>{r.coalConsumed}</td>
                       <td>{r.steamProduced}</td>
-                      <td>Rs {r.costPerTon}</td>
-                      <td className="font-medium">Rs {r.totalCost.toLocaleString()}</td>
+                      <td>Rs {r.costPerTon.toFixed(2)}</td>
+                      <td className="font-medium">Rs {r.totalCost.toFixed(2)}</td>
                     </tr>
                   ))}
                 </tbody>

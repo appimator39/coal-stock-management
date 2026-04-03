@@ -26,6 +26,11 @@ export function saveDailyRecord(record: DailyRecord) {
   localStorage.setItem(DAILY_KEY, JSON.stringify(records));
 }
 
+export function updateDailyRecord(record: DailyRecord) {
+  const records = getDailyRecords().map((r) => (r.id === record.id ? record : r));
+  localStorage.setItem(DAILY_KEY, JSON.stringify(records));
+}
+
 export function deleteDailyRecord(id: string) {
   const records = getDailyRecords().filter((r) => r.id !== id);
   localStorage.setItem(DAILY_KEY, JSON.stringify(records));
