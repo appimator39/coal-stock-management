@@ -32,13 +32,13 @@ export default function DailyLog() {
   const effectiveCostPerTon = costPerTon !== "" ? costPerTon : (avgPurchaseRate > 0 ? avgPurchaseRate.toFixed(2) : "");
 
   const handleAdd = () => {
-    if (!date || !coalConsumed || !steamProduced || !costPerTon) {
+    if (!date || !coalConsumed || !steamProduced || !effectiveCostPerTon) {
       toast.error("Please fill all fields");
       return;
     }
     const coal = parseFloat(coalConsumed);
     const steam = parseFloat(steamProduced);
-    const cost = parseFloat(costPerTon);
+    const cost = parseFloat(effectiveCostPerTon);
     if (isNaN(coal) || isNaN(steam) || isNaN(cost)) {
       toast.error("Please enter valid numbers");
       return;
