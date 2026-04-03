@@ -322,6 +322,13 @@ export default function PurchaseOrders() {
           )}
         </div>
       </div>
+
+      <PODetailModal
+        po={selectedPO}
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        vendorName={selectedPO ? getVendorName(selectedPO.vendorId) : ""}
+      />
     </div>
   );
 }
