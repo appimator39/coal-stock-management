@@ -53,6 +53,31 @@ export default function BalanceReport() {
     });
   }, [daily, purchases, opening]);
 
+  // Item-wise balance breakdown
+  const itemBalances = useMemo(() => {
+    const map = new Map<string, { purchased: number; consumed: number }>();
+    purchases.forEach((p) => {
+      const item = p.item || "Unspecified";
+      const e = map.get(item) || { purchased: 0, consumed: 0 };
+      e.purchased += p.quantity;
+      map.set(item, e);
+    });
+    daily.forEach((d) => {
+      const item = d.item || "Unspecified";
+      const e = map.get(item) || { purchased: 0, consumed: 0 };
+      e.consumed += d.coalConsumed;
+      map.set(item, e);
+    });
+    return Array.from(map.entries())
+      .map(([item, { purchased, consumed }]) => ({
+        item,
+        purchased,
+        consumed,
+        balance: purchased - consumed,
+      }))
+      .sort((a, b) => a.item.localeCompare(b.item));
+  }, [daily, purchases]);
+
   return (
     <div>
       <div className="page-header">
