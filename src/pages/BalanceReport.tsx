@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { getDailyRecords, getPurchaseRecords, getOpeningBalance, setOpeningBalance, resetAllData } from "@/lib/store";
+import { getDailyRecords, getPurchaseRecords, getOpeningBalance, setOpeningBalance, resetAllData, flattenDailyItems } from "@/lib/store";
 import { Package, TrendingDown, TrendingUp, Scale, BarChart3, AlertTriangle, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 import StatCard from "@/components/StatCard";
@@ -14,20 +14,18 @@ export default function BalanceReport() {
   const [openingInput, setOpeningInput] = useState(String(opening));
   const daily = getDailyRecords();
   const purchases = getPurchaseRecords();
+  const flatItems = useMemo(() => flattenDailyItems(daily), [daily]);
 
   const summary = useMemo(() => {
     const totalPurchased = purchases.reduce((s, r) => s + r.quantity, 0);
-    const totalConsumed = daily.reduce((s, r) => s + r.coalConsumed, 0);
+    const totalConsumed = daily.reduce((s, r) => s + r.totalCoal, 0);
     const closing = opening + totalPurchased - totalConsumed;
     return { totalPurchased, totalConsumed, closing };
   }, [daily, purchases, opening]);
 
   const handleSaveOpening = () => {
     const val = parseFloat(openingInput);
-    if (isNaN(val)) {
-      toast.error("Enter a valid number");
-      return;
-    }
+    if (isNaN(val)) { toast.error("Enter a valid number"); return; }
     setOpeningBalance(val);
     setOpening(val);
     toast.success("Opening balance updated");
@@ -42,7 +40,7 @@ export default function BalanceReport() {
     });
     daily.forEach((d) => {
       const e = map.get(d.date) || { purchased: 0, consumed: 0 };
-      e.consumed += d.coalConsumed;
+      e.consumed += d.totalCoal;
       map.set(d.date, e);
     });
     const sorted = Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
@@ -53,7 +51,6 @@ export default function BalanceReport() {
     });
   }, [daily, purchases, opening]);
 
-  // Item-wise balance breakdown
   const itemBalances = useMemo(() => {
     const map = new Map<string, { purchased: number; consumed: number }>();
     purchases.forEach((p) => {
@@ -62,21 +59,16 @@ export default function BalanceReport() {
       e.purchased += p.quantity;
       map.set(item, e);
     });
-    daily.forEach((d) => {
-      const item = d.item || "Unspecified";
+    flatItems.forEach((d) => {
+      const item = d.itemName || "Unspecified";
       const e = map.get(item) || { purchased: 0, consumed: 0 };
-      e.consumed += d.coalConsumed;
+      e.consumed += d.quantity;
       map.set(item, e);
     });
     return Array.from(map.entries())
-      .map(([item, { purchased, consumed }]) => ({
-        item,
-        purchased,
-        consumed,
-        balance: purchased - consumed,
-      }))
+      .map(([item, { purchased, consumed }]) => ({ item, purchased, consumed, balance: purchased - consumed }))
       .sort((a, b) => a.item.localeCompare(b.item));
-  }, [daily, purchases]);
+  }, [flatItems, purchases]);
 
   return (
     <div>
@@ -107,7 +99,6 @@ export default function BalanceReport() {
         <StatCard title="Closing Balance" value={summary.closing.toFixed(1)} unit="tons" icon={Scale} variant={summary.closing < 0 ? "warning" : "default"} />
       </div>
 
-      {/* Item-wise Stock Breakdown */}
       {itemBalances.length > 0 && (
         <div className="content-card mb-6">
           <div className="content-card-header">
@@ -131,18 +122,14 @@ export default function BalanceReport() {
                       <td className="font-medium">{ib.item}</td>
                       <td className="text-success font-medium">+{ib.purchased.toFixed(1)}</td>
                       <td className="text-primary font-medium">-{ib.consumed.toFixed(1)}</td>
-                      <td className={cn("font-bold", ib.balance < 0 ? "text-destructive" : "text-foreground")}>
-                        {ib.balance.toFixed(1)}
-                      </td>
+                      <td className={cn("font-bold", ib.balance < 0 ? "text-destructive" : "text-foreground")}>{ib.balance.toFixed(1)}</td>
                     </tr>
                   ))}
                   <tr className="bg-muted/30">
                     <td className="font-bold">Total</td>
                     <td className="font-bold text-success">+{itemBalances.reduce((s, i) => s + i.purchased, 0).toFixed(1)}</td>
                     <td className="font-bold text-primary">-{itemBalances.reduce((s, i) => s + i.consumed, 0).toFixed(1)}</td>
-                    <td className={cn("font-bold", summary.closing < 0 ? "text-destructive" : "text-foreground")}>
-                      {itemBalances.reduce((s, i) => s + i.balance, 0).toFixed(1)}
-                    </td>
+                    <td className={cn("font-bold", summary.closing < 0 ? "text-destructive" : "text-foreground")}>{itemBalances.reduce((s, i) => s + i.balance, 0).toFixed(1)}</td>
                   </tr>
                 </tbody>
               </table>
@@ -159,9 +146,7 @@ export default function BalanceReport() {
         <div className="content-card-body p-0">
           {dateEntries.length === 0 ? (
             <div className="empty-state">
-              <div className="empty-state-icon">
-                <BarChart3 className="w-5 h-5 text-muted-foreground" />
-              </div>
+              <div className="empty-state-icon"><BarChart3 className="w-5 h-5 text-muted-foreground" /></div>
               <p className="empty-state-title">No data available</p>
               <p className="empty-state-text">Add daily log entries and purchases to see the running balance.</p>
             </div>
@@ -192,7 +177,6 @@ export default function BalanceReport() {
         </div>
       </div>
 
-      {/* Reset Section */}
       <div className="content-card mt-6">
         <div className="content-card-header">
           <h2 className="font-heading font-semibold text-sm text-destructive">Danger Zone</h2>
@@ -205,27 +189,16 @@ export default function BalanceReport() {
             </div>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive" size="sm">
-                  <AlertTriangle className="w-4 h-4 mr-2" /> Reset All Data
-                </Button>
+                <Button variant="destructive" size="sm"><AlertTriangle className="w-4 h-4 mr-2" /> Reset All Data</Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will permanently delete all data including daily logs, purchase orders, purchases, vendors, items, and opening balance. There is no way to recover this data.
-                  </AlertDialogDescription>
+                  <AlertDialogDescription>This will permanently delete all data including daily logs, purchase orders, purchases, vendors, items, and opening balance. There is no way to recover this data.</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    onClick={() => {
-                      resetAllData();
-                      toast.success("All data has been reset");
-                      window.location.reload();
-                    }}
-                  >
+                  <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => { resetAllData(); toast.success("All data has been reset"); window.location.reload(); }}>
                     Yes, Reset Everything
                   </AlertDialogAction>
                 </AlertDialogFooter>

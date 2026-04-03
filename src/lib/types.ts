@@ -1,11 +1,20 @@
+export interface DailyRecordItem {
+  itemName: string;
+  quantity: number; // tons
+  costPerTon: number;
+}
+
 export interface DailyRecord {
   id: string;
   date: string;
-  item: string; // coal item name
-  coalConsumed: number; // tons
+  items: DailyRecordItem[];
   steamProduced: number; // tons
-  costPerTon: number;
+  totalCoal: number; // sum of all item quantities
   totalCost: number;
+  // Legacy fields for backward compat with old localStorage data
+  item?: string;
+  coalConsumed?: number;
+  costPerTon?: number;
 }
 
 export interface PurchaseOrder {

@@ -1,4 +1,4 @@
-import { DailyRecord, PurchaseRecord, PurchaseOrder, Vendor, Item } from "./types";
+import { DailyRecord, PurchaseRecord, PurchaseOrder, Vendor, Item, DailyRecordItem } from "./types";
 
 export function resetAllData() {
   const keys = ["coal_daily_records", "coal_purchase_records", "coal_opening_balance", "coal_vendors", "coal_purchase_orders", "coal_items"];
@@ -12,11 +12,29 @@ const VENDOR_KEY = "coal_vendors";
 const PO_KEY = "coal_purchase_orders";
 const ITEM_KEY = "coal_items";
 
+// Normalize old single-item records to new multi-item format
+function normalizeDailyRecord(r: any): DailyRecord {
+  if (r.items && Array.isArray(r.items)) return r as DailyRecord;
+  // Legacy record: convert single item to items array
+  const itemName = r.item || "Unspecified";
+  const qty = r.coalConsumed || 0;
+  const cost = r.costPerTon || 0;
+  return {
+    id: r.id,
+    date: r.date,
+    items: [{ itemName, quantity: qty, costPerTon: cost }],
+    steamProduced: r.steamProduced || 0,
+    totalCoal: qty,
+    totalCost: r.totalCost || qty * cost,
+  };
+}
+
 // --- Daily Records ---
 export function getDailyRecords(): DailyRecord[] {
   try {
     const data = localStorage.getItem(DAILY_KEY);
-    return data ? JSON.parse(data) : [];
+    const raw = data ? JSON.parse(data) : [];
+    return raw.map(normalizeDailyRecord);
   } catch { return []; }
 }
 
@@ -34,6 +52,17 @@ export function updateDailyRecord(record: DailyRecord) {
 export function deleteDailyRecord(id: string) {
   const records = getDailyRecords().filter((r) => r.id !== id);
   localStorage.setItem(DAILY_KEY, JSON.stringify(records));
+}
+
+// --- Helpers to flatten daily records for consumption tracking ---
+export function flattenDailyItems(records: DailyRecord[]): Array<{ date: string; itemName: string; quantity: number; costPerTon: number }> {
+  const result: Array<{ date: string; itemName: string; quantity: number; costPerTon: number }> = [];
+  records.forEach((r) => {
+    r.items.forEach((item) => {
+      result.push({ date: r.date, itemName: item.itemName, quantity: item.quantity, costPerTon: item.costPerTon });
+    });
+  });
+  return result;
 }
 
 // --- Purchase Records ---
