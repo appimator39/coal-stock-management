@@ -104,8 +104,8 @@ export default function DailyLog() {
                   <th className="pb-2 font-medium">Date</th>
                   <th className="pb-2 font-medium">Coal (tons)</th>
                   <th className="pb-2 font-medium">Steam (tons)</th>
-                  <th className="pb-2 font-medium">Cost/Ton (₹)</th>
-                  <th className="pb-2 font-medium">Total Cost (₹)</th>
+                   <th className="pb-2 font-medium">Cost/Ton (PKR)</th>
+                   <th className="pb-2 font-medium">Total Cost (PKR)</th>
                   <th className="pb-2 font-medium"></th>
                 </tr>
               </thead>
