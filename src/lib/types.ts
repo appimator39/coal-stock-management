@@ -12,6 +12,7 @@ export interface PurchaseOrder {
   poNumber: string;
   date: string;
   vendorId: string;
+  item: string;
   quantity: number; // tons
   pricePerTon: number;
   totalAmount: number;
