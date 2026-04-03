@@ -2,11 +2,12 @@ import { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { getDailyRecords, getPurchaseRecords, getOpeningBalance, setOpeningBalance } from "@/lib/store";
-import { Package, TrendingDown, TrendingUp, Scale, BarChart3 } from "lucide-react";
+import { getDailyRecords, getPurchaseRecords, getOpeningBalance, setOpeningBalance, resetAllData } from "@/lib/store";
+import { Package, TrendingDown, TrendingUp, Scale, BarChart3, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import StatCard from "@/components/StatCard";
 import { toast } from "sonner";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 export default function BalanceReport() {
   const [opening, setOpening] = useState(getOpeningBalance());
@@ -119,6 +120,49 @@ export default function BalanceReport() {
               </table>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Reset Section */}
+      <div className="content-card mt-6">
+        <div className="content-card-header">
+          <h2 className="font-heading font-semibold text-sm text-destructive">Danger Zone</h2>
+        </div>
+        <div className="content-card-body">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <p className="font-medium text-sm">Reset All Data</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Permanently delete all records — daily logs, purchases, vendors, items, purchase orders, and balance. This cannot be undone.</p>
+            </div>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm">
+                  <AlertTriangle className="w-4 h-4 mr-2" /> Reset All Data
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete all data including daily logs, purchase orders, purchases, vendors, items, and opening balance. There is no way to recover this data.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={() => {
+                      resetAllData();
+                      toast.success("All data has been reset");
+                      window.location.reload();
+                    }}
+                  >
+                    Yes, Reset Everything
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </div>
       </div>
     </div>
