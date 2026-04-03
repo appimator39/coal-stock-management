@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, Plus, Trash2, CalendarDays, Info, X, Layers, Pencil, Check } from "lucide-react";
+import { CalendarIcon, Plus, Trash2, CalendarDays, Info, X, Layers, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { getDailyRecords, saveDailyRecord, deleteDailyRecord, updateDailyRecord, getPurchaseRecords, getItems } from "@/lib/store";
-import { DailyRecord } from "@/lib/types";
+import { DailyRecord, DailyRecordItem } from "@/lib/types";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -27,10 +27,7 @@ export default function DailyLog() {
   const [steamProduced, setSteamProduced] = useState("");
   const [itemLines, setItemLines] = useState<ItemLine[]>([]);
   const [costOverride, setCostOverride] = useState("");
-
-  // Edit state
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<{ coalConsumed: string; steamProduced: string; costPerTon: string }>({ coalConsumed: "", steamProduced: "", costPerTon: "" });
 
   const availableItems = getItems();
 
@@ -85,7 +82,15 @@ export default function DailyLog() {
     setItemLines(itemLines.filter((l) => l.id !== id));
   };
 
-  const handleAdd = () => {
+  const resetForm = () => {
+    setDate(undefined);
+    setSteamProduced("");
+    setItemLines([]);
+    setCostOverride("");
+    setEditingId(null);
+  };
+
+  const handleSave = () => {
     if (!date || itemLines.length === 0 || !steamProduced) {
       toast.error("Please fill date, add at least one item, and enter steam produced");
       return;
@@ -94,61 +99,63 @@ export default function DailyLog() {
     if (isNaN(steam)) { toast.error("Invalid steam value"); return; }
     const validLines = itemLines.filter((l) => l.itemId && parseFloat(l.quantity) > 0);
     if (validLines.length === 0) { toast.error("Please select items and enter quantities"); return; }
-    const costPerTon = effectiveCostPerTon;
-    if (costPerTon <= 0) { toast.error("Cost per ton must be greater than 0"); return; }
 
-    const steamPerItem = steam / validLines.length;
-    validLines.forEach((line) => {
+    const items: DailyRecordItem[] = validLines.map((line) => {
       const qty = parseFloat(line.quantity);
-      const record: DailyRecord = {
-        id: crypto.randomUUID(),
-        date: format(date, "yyyy-MM-dd"),
-        item: line.itemName,
-        coalConsumed: qty,
-        steamProduced: parseFloat(steamPerItem.toFixed(2)),
-        costPerTon: parseFloat(costPerTon.toFixed(2)),
-        totalCost: parseFloat((qty * costPerTon).toFixed(2)),
-      };
-      saveDailyRecord(record);
+      const costPerTon = costOverride !== "" ? (parseFloat(costOverride) || 0) : line.rate;
+      return { itemName: line.itemName, quantity: qty, costPerTon: parseFloat(costPerTon.toFixed(2)) };
     });
 
+    const totalCoal = items.reduce((s, i) => s + i.quantity, 0);
+    const totalCost = items.reduce((s, i) => s + i.quantity * i.costPerTon, 0);
+
+    const record: DailyRecord = {
+      id: editingId || crypto.randomUUID(),
+      date: format(date, "yyyy-MM-dd"),
+      items,
+      steamProduced: parseFloat(steam.toFixed(2)),
+      totalCoal: parseFloat(totalCoal.toFixed(2)),
+      totalCost: parseFloat(totalCost.toFixed(2)),
+    };
+
+    if (editingId) {
+      updateDailyRecord(record);
+      toast.success("Record updated");
+    } else {
+      saveDailyRecord(record);
+      toast.success("Record added");
+    }
+
     setRecords(getDailyRecords());
-    setDate(undefined);
-    setSteamProduced("");
-    setItemLines([]);
+    resetForm();
+  };
+
+  const handleEdit = (r: DailyRecord) => {
+    setEditingId(r.id);
+    setDate(new Date(r.date));
+    setSteamProduced(String(r.steamProduced));
     setCostOverride("");
-    toast.success(`${validLines.length} record(s) added`);
+    // Rebuild item lines from the record's items
+    const lines: ItemLine[] = r.items.map((item) => {
+      const matchedItem = availableItems.find((ai) => ai.name === item.itemName);
+      return {
+        id: crypto.randomUUID(),
+        itemId: matchedItem?.id || "",
+        itemName: item.itemName,
+        quantity: String(item.quantity),
+        rate: item.costPerTon,
+      };
+    });
+    setItemLines(lines);
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleDelete = (id: string) => {
     deleteDailyRecord(id);
     setRecords(getDailyRecords());
+    if (editingId === id) resetForm();
     toast.success("Record deleted");
-  };
-
-  const startEdit = (r: DailyRecord) => {
-    setEditingId(r.id);
-    setEditForm({ coalConsumed: String(r.coalConsumed), steamProduced: String(r.steamProduced), costPerTon: String(r.costPerTon) });
-  };
-
-  const saveEdit = (r: DailyRecord) => {
-    const coal = parseFloat(editForm.coalConsumed);
-    const steam = parseFloat(editForm.steamProduced);
-    const cost = parseFloat(editForm.costPerTon);
-    if (isNaN(coal) || isNaN(steam) || isNaN(cost)) { toast.error("Invalid values"); return; }
-
-    const updated: DailyRecord = {
-      ...r,
-      coalConsumed: coal,
-      steamProduced: parseFloat(steam.toFixed(2)),
-      costPerTon: parseFloat(cost.toFixed(2)),
-      totalCost: parseFloat((coal * cost).toFixed(2)),
-    };
-
-    updateDailyRecord(updated);
-    setRecords((current) => current.map((record) => (record.id === updated.id ? updated : record)));
-    setEditingId(null);
-    toast.success("Record updated");
   };
 
   const usedItemIds = itemLines.map((l) => l.itemId).filter(Boolean);
@@ -162,7 +169,14 @@ export default function DailyLog() {
 
       <div className="content-card mb-6">
         <div className="content-card-header">
-          <h2 className="font-heading font-semibold text-sm">Add New Entry</h2>
+          <h2 className="font-heading font-semibold text-sm">
+            {editingId ? "Edit Entry" : "Add New Entry"}
+          </h2>
+          {editingId && (
+            <Button variant="ghost" size="sm" className="text-xs" onClick={resetForm}>
+              <X className="w-3.5 h-3.5 mr-1" /> Cancel Edit
+            </Button>
+          )}
         </div>
         <div className="content-card-body space-y-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -271,8 +285,8 @@ export default function DailyLog() {
             </div>
           )}
 
-          <Button onClick={handleAdd} className="w-full sm:w-auto" disabled={itemLines.length === 0}>
-            <Plus className="w-4 h-4 mr-2" /> Save Entry
+          <Button onClick={handleSave} className="w-full sm:w-auto" disabled={itemLines.length === 0}>
+            <Plus className="w-4 h-4 mr-2" /> {editingId ? "Update Entry" : "Save Entry"}
           </Button>
         </div>
       </div>
@@ -295,46 +309,42 @@ export default function DailyLog() {
                 <thead>
                   <tr>
                     <th>Date</th>
-                    <th>Item</th>
-                    <th>Coal (tons)</th>
+                    <th>Items</th>
+                    <th>Total Coal (tons)</th>
                     <th>Steam (tons)</th>
-                    <th>Cost/Ton (Rs)</th>
                     <th>Total Cost (Rs)</th>
                     <th className="w-20"></th>
                   </tr>
                 </thead>
                 <tbody>
                   {[...records].reverse().map((r) => (
-                    <tr key={r.id}>
+                    <tr key={r.id} className={cn(editingId === r.id && "bg-primary/5")}>
                       <td className="font-medium">{r.date}</td>
-                      <td>{r.item || "—"}</td>
-                      {editingId === r.id ? (
-                        <>
-                          <td><Input type="number" value={editForm.coalConsumed} onChange={(e) => setEditForm({ ...editForm, coalConsumed: e.target.value })} className="h-8 w-20 text-sm" /></td>
-                          <td><Input type="number" value={editForm.steamProduced} onChange={(e) => setEditForm({ ...editForm, steamProduced: e.target.value })} className="h-8 w-20 text-sm" /></td>
-                          <td><Input type="number" value={editForm.costPerTon} onChange={(e) => setEditForm({ ...editForm, costPerTon: e.target.value })} className="h-8 w-24 text-sm" /></td>
-                          <td className="font-medium">Rs {((parseFloat(editForm.coalConsumed) || 0) * (parseFloat(editForm.costPerTon) || 0)).toFixed(2)}</td>
-                          <td>
-                            <div className="flex gap-1">
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => saveEdit(r)}><Check className="w-3.5 h-3.5 text-success" /></Button>
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingId(null)}><X className="w-3.5 h-3.5 text-muted-foreground" /></Button>
+                      <td>
+                        <div className="space-y-0.5">
+                          {r.items.map((item, idx) => (
+                            <div key={idx} className="text-xs">
+                              <span className="font-medium">{item.itemName}</span>
+                              <span className="text-muted-foreground ml-1">
+                                {item.quantity}t × Rs {item.costPerTon.toFixed(2)}
+                              </span>
                             </div>
-                          </td>
-                        </>
-                      ) : (
-                        <>
-                          <td>{Number(r.coalConsumed)}</td>
-                          <td>{Number(r.steamProduced)}</td>
-                          <td>Rs {Number(r.costPerTon).toFixed(2)}</td>
-                          <td className="font-medium">Rs {Number(r.totalCost).toFixed(2)}</td>
-                          <td>
-                            <div className="flex gap-1">
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => startEdit(r)}><Pencil className="w-3.5 h-3.5 text-muted-foreground" /></Button>
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(r.id)}><Trash2 className="w-3.5 h-3.5 text-destructive" /></Button>
-                            </div>
-                          </td>
-                        </>
-                      )}
+                          ))}
+                        </div>
+                      </td>
+                      <td>{r.totalCoal}</td>
+                      <td>{r.steamProduced}</td>
+                      <td className="font-medium">Rs {r.totalCost.toFixed(2)}</td>
+                      <td>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(r)}>
+                            <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(r.id)}>
+                            <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                          </Button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

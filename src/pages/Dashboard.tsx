@@ -1,7 +1,7 @@
 import { Flame, CloudCog, Wallet, Package, CalendarDays, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import StatCard from "@/components/StatCard";
-import { getDailyRecords, getPurchaseRecords, getOpeningBalance } from "@/lib/store";
+import { getDailyRecords, getPurchaseRecords, getOpeningBalance, flattenDailyItems } from "@/lib/store";
 import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -10,9 +10,10 @@ export default function Dashboard() {
   const daily = getDailyRecords();
   const purchases = getPurchaseRecords();
   const opening = getOpeningBalance();
+  const flatItems = useMemo(() => flattenDailyItems(daily), [daily]);
 
   const stats = useMemo(() => {
-    const totalConsumed = daily.reduce((s, r) => s + r.coalConsumed, 0);
+    const totalConsumed = daily.reduce((s, r) => s + r.totalCoal, 0);
     const totalSteam = daily.reduce((s, r) => s + r.steamProduced, 0);
     const totalCost = daily.reduce((s, r) => s + r.totalCost, 0);
     const totalPurchased = purchases.reduce((s, r) => s + r.quantity, 0);
@@ -20,7 +21,6 @@ export default function Dashboard() {
     return { totalConsumed, totalSteam, totalCost, totalPurchased, balance };
   }, [daily, purchases, opening]);
 
-  // Item-wise balance breakdown
   const itemBalances = useMemo(() => {
     const map = new Map<string, { purchased: number; consumed: number }>();
     purchases.forEach((p) => {
@@ -29,21 +29,16 @@ export default function Dashboard() {
       e.purchased += p.quantity;
       map.set(item, e);
     });
-    daily.forEach((d) => {
-      const item = d.item || "Unspecified";
+    flatItems.forEach((d) => {
+      const item = d.itemName || "Unspecified";
       const e = map.get(item) || { purchased: 0, consumed: 0 };
-      e.consumed += d.coalConsumed;
+      e.consumed += d.quantity;
       map.set(item, e);
     });
     return Array.from(map.entries())
-      .map(([item, { purchased, consumed }]) => ({
-        item,
-        purchased,
-        consumed,
-        balance: purchased - consumed,
-      }))
+      .map(([item, { purchased, consumed }]) => ({ item, purchased, consumed, balance: purchased - consumed }))
       .sort((a, b) => a.item.localeCompare(b.item));
-  }, [daily, purchases]);
+  }, [flatItems, purchases]);
 
   return (
     <div>
@@ -55,11 +50,10 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatCard title="Coal Consumed" value={stats.totalConsumed.toFixed(1)} unit="tons" icon={Flame} variant="primary" />
         <StatCard title="Steam Produced" value={stats.totalSteam.toFixed(1)} unit="tons" icon={CloudCog} variant="success" />
-        <StatCard title="Total Cost" value={`Rs ${stats.totalCost.toLocaleString()}`} icon={Wallet} variant="warning" />
+        <StatCard title="Total Cost" value={`Rs ${stats.totalCost.toFixed(2)}`} icon={Wallet} variant="warning" />
         <StatCard title="Coal Balance" value={stats.balance.toFixed(1)} unit="tons" icon={Package} />
       </div>
 
-      {/* Item-wise Stock Breakdown */}
       {itemBalances.length > 0 && (
         <div className="content-card mb-8">
           <div className="content-card-header">
@@ -83,18 +77,14 @@ export default function Dashboard() {
                       <td className="font-medium">{ib.item}</td>
                       <td className="text-success font-medium">{ib.purchased.toFixed(1)}</td>
                       <td className="text-primary font-medium">{ib.consumed.toFixed(1)}</td>
-                      <td className={cn("font-bold", ib.balance < 0 ? "text-destructive" : "text-foreground")}>
-                        {ib.balance.toFixed(1)}
-                      </td>
+                      <td className={cn("font-bold", ib.balance < 0 ? "text-destructive" : "text-foreground")}>{ib.balance.toFixed(1)}</td>
                     </tr>
                   ))}
                   <tr className="bg-muted/30">
                     <td className="font-bold">Total</td>
                     <td className="font-bold text-success">{itemBalances.reduce((s, i) => s + i.purchased, 0).toFixed(1)}</td>
                     <td className="font-bold text-primary">{itemBalances.reduce((s, i) => s + i.consumed, 0).toFixed(1)}</td>
-                    <td className={cn("font-bold", stats.balance < 0 ? "text-destructive" : "text-foreground")}>
-                      {itemBalances.reduce((s, i) => s + i.balance, 0).toFixed(1)}
-                    </td>
+                    <td className={cn("font-bold", stats.balance < 0 ? "text-destructive" : "text-foreground")}>{itemBalances.reduce((s, i) => s + i.balance, 0).toFixed(1)}</td>
                   </tr>
                 </tbody>
               </table>
@@ -115,14 +105,10 @@ export default function Dashboard() {
         <div className="content-card-body p-0">
           {daily.length === 0 ? (
             <div className="empty-state">
-              <div className="empty-state-icon">
-                <CalendarDays className="w-5 h-5 text-muted-foreground" />
-              </div>
+              <div className="empty-state-icon"><CalendarDays className="w-5 h-5 text-muted-foreground" /></div>
               <p className="empty-state-title">No entries yet</p>
               <p className="empty-state-text">Start tracking by adding records in the Daily Log.</p>
-              <Link to="/daily-log" className="mt-4">
-                <Button size="sm">Go to Daily Log</Button>
-              </Link>
+              <Link to="/daily-log" className="mt-4"><Button size="sm">Go to Daily Log</Button></Link>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -130,10 +116,9 @@ export default function Dashboard() {
                 <thead>
                   <tr>
                     <th>Date</th>
-                    <th>Item</th>
+                    <th>Items</th>
                     <th>Coal (tons)</th>
                     <th>Steam (tons)</th>
-                    <th>Cost/Ton</th>
                     <th>Total Cost</th>
                   </tr>
                 </thead>
@@ -141,10 +126,15 @@ export default function Dashboard() {
                   {daily.slice(-5).reverse().map((r) => (
                     <tr key={r.id}>
                       <td className="font-medium">{r.date}</td>
-                      <td>{r.item || "—"}</td>
-                      <td>{r.coalConsumed}</td>
+                      <td>
+                        {r.items.map((item, idx) => (
+                          <span key={idx} className="text-xs">
+                            {item.itemName}{idx < r.items.length - 1 ? ", " : ""}
+                          </span>
+                        ))}
+                      </td>
+                      <td>{r.totalCoal}</td>
                       <td>{r.steamProduced}</td>
-                      <td>Rs {r.costPerTon.toFixed(2)}</td>
                       <td className="font-medium">Rs {r.totalCost.toFixed(2)}</td>
                     </tr>
                   ))}
