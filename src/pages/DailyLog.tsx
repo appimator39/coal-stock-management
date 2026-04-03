@@ -83,7 +83,7 @@ export default function DailyLog() {
             <Input type="number" value={steamProduced} onChange={(e) => setSteamProduced(e.target.value)} className="mt-1" placeholder="0" />
           </div>
           <div>
-            <Label>Cost per Ton (₹)</Label>
+            <Label>Cost per Ton (PKR)</Label>
             <Input type="number" value={costPerTon} onChange={(e) => setCostPerTon(e.target.value)} className="mt-1" placeholder="0" />
           </div>
           <Button onClick={handleAdd} className="mt-1">
