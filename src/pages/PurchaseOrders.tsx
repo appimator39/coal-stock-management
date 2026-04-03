@@ -26,6 +26,8 @@ export default function PurchaseOrders() {
 
   const [exportFrom, setExportFrom] = useState<Date>();
   const [exportTo, setExportTo] = useState<Date>();
+  const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
   const generatePONumber = () => {
     const count = getPurchaseOrders().length + 1;
