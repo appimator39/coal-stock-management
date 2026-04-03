@@ -136,6 +136,7 @@ export default function DailyLog() {
     const steam = parseFloat(editForm.steamProduced);
     const cost = parseFloat(editForm.costPerTon);
     if (isNaN(coal) || isNaN(steam) || isNaN(cost)) { toast.error("Invalid values"); return; }
+
     const updated: DailyRecord = {
       ...r,
       coalConsumed: coal,
@@ -143,8 +144,9 @@ export default function DailyLog() {
       costPerTon: parseFloat(cost.toFixed(2)),
       totalCost: parseFloat((coal * cost).toFixed(2)),
     };
+
     updateDailyRecord(updated);
-    setRecords(getDailyRecords());
+    setRecords((current) => current.map((record) => (record.id === updated.id ? updated : record)));
     setEditingId(null);
     toast.success("Record updated");
   };
