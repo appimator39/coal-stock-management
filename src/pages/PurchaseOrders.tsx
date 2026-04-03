@@ -12,6 +12,7 @@ import { getPurchaseOrders, savePurchaseOrder, deletePurchaseOrder, getVendors, 
 import { PurchaseOrder } from "@/lib/types";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import PODetailModal from "@/components/PODetailModal";
 
 export default function PurchaseOrders() {
   const [orders, setOrders] = useState<PurchaseOrder[]>(getPurchaseOrders());
