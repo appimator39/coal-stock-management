@@ -82,7 +82,7 @@ export default function Purchases() {
             <Input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="mt-1" placeholder="0" />
           </div>
           <div>
-            <Label>Price/Ton (₹)</Label>
+            <Label>Price/Ton (PKR)</Label>
             <Input type="number" value={pricePerTon} onChange={(e) => setPricePerTon(e.target.value)} className="mt-1" placeholder="0" />
           </div>
           <Button onClick={handleAdd} className="mt-1">
