@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { Flame, LayoutDashboard, CalendarDays, ShoppingCart, BarChart3, Users, ClipboardList, ChevronLeft, Menu } from "lucide-react";
+import { Flame, LayoutDashboard, CalendarDays, ShoppingCart, BarChart3, Users, ClipboardList, ChevronLeft, Menu, Package } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
