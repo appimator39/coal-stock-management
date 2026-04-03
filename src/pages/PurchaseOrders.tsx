@@ -32,7 +32,7 @@ export default function PurchaseOrders() {
   };
 
   const handleAdd = () => {
-    if (!date || !vendorId || !item.trim() || !quantity || !pricePerTon) {
+    if (!date || !vendorId || !itemId || !quantity || !pricePerTon) {
       toast.error("Please fill all fields");
       return;
     }
