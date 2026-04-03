@@ -23,7 +23,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatCard title="Coal Consumed" value={stats.totalConsumed.toFixed(1)} unit="tons" icon={Flame} variant="primary" />
         <StatCard title="Steam Produced" value={stats.totalSteam.toFixed(1)} unit="tons" icon={CloudCog} variant="success" />
-        <StatCard title="Total Cost" value={`₹${stats.totalCost.toLocaleString()}`} icon={IndianRupee} variant="warning" />
+        <StatCard title="Total Cost" value={`PKR ${stats.totalCost.toLocaleString()}`} icon={IndianRupee} variant="warning" />
         <StatCard title="Coal Balance" value={stats.balance.toFixed(1)} unit="tons" icon={Package} />
       </div>
 
@@ -49,8 +49,8 @@ export default function Dashboard() {
                     <td className="py-2.5">{r.date}</td>
                     <td className="py-2.5">{r.coalConsumed}</td>
                     <td className="py-2.5">{r.steamProduced}</td>
-                    <td className="py-2.5">₹{r.costPerTon}</td>
-                    <td className="py-2.5">₹{r.totalCost.toLocaleString()}</td>
+                    <td className="py-2.5">PKR {r.costPerTon}</td>
+                    <td className="py-2.5">PKR {r.totalCost.toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>

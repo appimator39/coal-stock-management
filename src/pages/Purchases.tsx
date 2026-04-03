@@ -82,7 +82,7 @@ export default function Purchases() {
             <Input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="mt-1" placeholder="0" />
           </div>
           <div>
-            <Label>Price/Ton (₹)</Label>
+            <Label>Price/Ton (PKR)</Label>
             <Input type="number" value={pricePerTon} onChange={(e) => setPricePerTon(e.target.value)} className="mt-1" placeholder="0" />
           </div>
           <Button onClick={handleAdd} className="mt-1">
@@ -103,8 +103,8 @@ export default function Purchases() {
                   <th className="pb-2 font-medium">Date</th>
                   <th className="pb-2 font-medium">Vendor</th>
                   <th className="pb-2 font-medium">Qty (tons)</th>
-                  <th className="pb-2 font-medium">Price/Ton (₹)</th>
-                  <th className="pb-2 font-medium">Total (₹)</th>
+                   <th className="pb-2 font-medium">Price/Ton (PKR)</th>
+                   <th className="pb-2 font-medium">Total (PKR)</th>
                   <th className="pb-2 font-medium"></th>
                 </tr>
               </thead>
@@ -114,8 +114,8 @@ export default function Purchases() {
                     <td className="py-2.5">{r.date}</td>
                     <td className="py-2.5">{r.vendor}</td>
                     <td className="py-2.5">{r.quantity}</td>
-                    <td className="py-2.5">₹{r.pricePerTon}</td>
-                    <td className="py-2.5">₹{r.totalAmount.toLocaleString()}</td>
+                    <td className="py-2.5">PKR {r.pricePerTon}</td>
+                    <td className="py-2.5">PKR {r.totalAmount.toLocaleString()}</td>
                     <td className="py-2.5">
                       <Button variant="ghost" size="icon" onClick={() => handleDelete(r.id)}>
                         <Trash2 className="w-4 h-4 text-destructive" />

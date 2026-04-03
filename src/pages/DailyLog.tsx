@@ -83,7 +83,7 @@ export default function DailyLog() {
             <Input type="number" value={steamProduced} onChange={(e) => setSteamProduced(e.target.value)} className="mt-1" placeholder="0" />
           </div>
           <div>
-            <Label>Cost per Ton (₹)</Label>
+            <Label>Cost per Ton (PKR)</Label>
             <Input type="number" value={costPerTon} onChange={(e) => setCostPerTon(e.target.value)} className="mt-1" placeholder="0" />
           </div>
           <Button onClick={handleAdd} className="mt-1">
@@ -104,8 +104,8 @@ export default function DailyLog() {
                   <th className="pb-2 font-medium">Date</th>
                   <th className="pb-2 font-medium">Coal (tons)</th>
                   <th className="pb-2 font-medium">Steam (tons)</th>
-                  <th className="pb-2 font-medium">Cost/Ton (₹)</th>
-                  <th className="pb-2 font-medium">Total Cost (₹)</th>
+                   <th className="pb-2 font-medium">Cost/Ton (PKR)</th>
+                   <th className="pb-2 font-medium">Total Cost (PKR)</th>
                   <th className="pb-2 font-medium"></th>
                 </tr>
               </thead>
@@ -115,8 +115,8 @@ export default function DailyLog() {
                     <td className="py-2.5">{r.date}</td>
                     <td className="py-2.5">{r.coalConsumed}</td>
                     <td className="py-2.5">{r.steamProduced}</td>
-                    <td className="py-2.5">₹{r.costPerTon}</td>
-                    <td className="py-2.5">₹{r.totalCost.toLocaleString()}</td>
+                    <td className="py-2.5">PKR {r.costPerTon}</td>
+                    <td className="py-2.5">PKR {r.totalCost.toLocaleString()}</td>
                     <td className="py-2.5">
                       <Button variant="ghost" size="icon" onClick={() => handleDelete(r.id)}>
                         <Trash2 className="w-4 h-4 text-destructive" />
