@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { format, parse, isWithinInterval, startOfDay, endOfDay } from "date-fns";
-import { CalendarIcon, Plus, Trash2, CheckCircle2, Download, ClipboardList } from "lucide-react";
+import { CalendarIcon, Plus, Trash2, CheckCircle2, Download, ClipboardList, Eye, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
