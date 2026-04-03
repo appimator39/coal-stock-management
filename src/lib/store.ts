@@ -96,3 +96,27 @@ export function deletePurchaseOrder(id: string) {
   const orders = getPurchaseOrders().filter((o) => o.id !== id);
   localStorage.setItem(PO_KEY, JSON.stringify(orders));
 }
+
+// --- Items ---
+export function getItems(): Item[] {
+  try {
+    const data = localStorage.getItem(ITEM_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch { return []; }
+}
+
+export function saveItem(item: Item) {
+  const items = getItems();
+  items.push(item);
+  localStorage.setItem(ITEM_KEY, JSON.stringify(items));
+}
+
+export function updateItem(item: Item) {
+  const items = getItems().map((i) => (i.id === item.id ? item : i));
+  localStorage.setItem(ITEM_KEY, JSON.stringify(items));
+}
+
+export function deleteItem(id: string) {
+  const items = getItems().filter((i) => i.id !== id);
+  localStorage.setItem(ITEM_KEY, JSON.stringify(items));
+}
