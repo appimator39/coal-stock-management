@@ -1,15 +1,16 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, Plus, Trash2, CalendarDays } from "lucide-react";
+import { CalendarIcon, Plus, Trash2, CalendarDays, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { getDailyRecords, saveDailyRecord, deleteDailyRecord } from "@/lib/store";
+import { getDailyRecords, saveDailyRecord, deleteDailyRecord, getPurchaseRecords } from "@/lib/store";
 import { DailyRecord } from "@/lib/types";
 import { toast } from "sonner";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function DailyLog() {
   const [records, setRecords] = useState<DailyRecord[]>(getDailyRecords());
@@ -18,14 +19,26 @@ export default function DailyLog() {
   const [steamProduced, setSteamProduced] = useState("");
   const [costPerTon, setCostPerTon] = useState("");
 
+  // Calculate weighted average purchase rate
+  const avgPurchaseRate = useMemo(() => {
+    const purchases = getPurchaseRecords();
+    if (purchases.length === 0) return 0;
+    const totalQty = purchases.reduce((s, p) => s + p.quantity, 0);
+    const totalAmount = purchases.reduce((s, p) => s + p.totalAmount, 0);
+    return totalQty > 0 ? totalAmount / totalQty : 0;
+  }, [records]); // recalc when records change (after add/delete triggers re-render)
+
+  // Auto-fill cost per ton when user hasn't manually entered one
+  const effectiveCostPerTon = costPerTon !== "" ? costPerTon : (avgPurchaseRate > 0 ? avgPurchaseRate.toFixed(2) : "");
+
   const handleAdd = () => {
-    if (!date || !coalConsumed || !steamProduced || !costPerTon) {
+    if (!date || !coalConsumed || !steamProduced || !effectiveCostPerTon) {
       toast.error("Please fill all fields");
       return;
     }
     const coal = parseFloat(coalConsumed);
     const steam = parseFloat(steamProduced);
-    const cost = parseFloat(costPerTon);
+    const cost = parseFloat(effectiveCostPerTon);
     if (isNaN(coal) || isNaN(steam) || isNaN(cost)) {
       toast.error("Please enter valid numbers");
       return;
@@ -91,8 +104,29 @@ export default function DailyLog() {
               <Input type="number" value={steamProduced} onChange={(e) => setSteamProduced(e.target.value)} className="mt-1.5" placeholder="0.00" />
             </div>
             <div>
-              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Cost per Ton (Rs)</Label>
-              <Input type="number" value={costPerTon} onChange={(e) => setCostPerTon(e.target.value)} className="mt-1.5" placeholder="0.00" />
+              <div className="flex items-center gap-1.5">
+                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Cost per Ton (Rs)</Label>
+                {avgPurchaseRate > 0 && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs">Auto-calculated from weighted avg. purchase rate: Rs {avgPurchaseRate.toFixed(2)}/ton</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
+              <Input
+                type="number"
+                value={effectiveCostPerTon}
+                onChange={(e) => setCostPerTon(e.target.value)}
+                className="mt-1.5"
+                placeholder={avgPurchaseRate > 0 ? `Avg: Rs ${avgPurchaseRate.toFixed(2)}` : "0.00"}
+              />
+              {avgPurchaseRate > 0 && costPerTon === "" && (
+                <p className="text-[10px] text-success mt-1 font-medium">Auto-filled from avg. purchase rate</p>
+              )}
             </div>
           </div>
           <Button onClick={handleAdd} className="w-full sm:w-auto">
