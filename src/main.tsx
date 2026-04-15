@@ -1,4 +1,5 @@
 import { createRoot } from "react-dom/client";
+import { registerSW } from "virtual:pwa-register";
 import App from "./App.tsx";
 import "./index.css";
 
@@ -18,6 +19,15 @@ const isPreviewHost =
 if (isPreviewHost || isInIframe) {
   navigator.serviceWorker?.getRegistrations().then((registrations) => {
     registrations.forEach((r) => r.unregister());
+  });
+} else {
+  registerSW({
+    onOfflineReady() {
+      console.info("Coal Tracker Pro is ready to work offline.");
+    },
+    onNeedRefresh() {
+      // Auto-update is configured — new version will be applied on next reload
+    },
   });
 }
 

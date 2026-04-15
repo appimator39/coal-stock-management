@@ -1,14 +1,15 @@
 import { useState, useMemo } from "react";
 import { format, parse, isWithinInterval, startOfDay, endOfDay } from "date-fns";
-import { CalendarIcon, Plus, Trash2, CheckCircle2, Download, ClipboardList, Eye, Printer } from "lucide-react";
+import { CalendarIcon, Plus, Trash2, CheckCircle2, Download, ClipboardList, Eye, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { getPurchaseOrders, savePurchaseOrder, deletePurchaseOrder, getVendors, getItems } from "@/lib/store";
+import { getPurchaseOrders, savePurchaseOrder, updatePurchaseOrder, deletePurchaseOrder, getPurchaseRecords, getVendors, getItems } from "@/lib/store";
 import { PurchaseOrder } from "@/lib/types";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +29,14 @@ export default function PurchaseOrders() {
   const [exportTo, setExportTo] = useState<Date>();
   const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+
+  // Edit dialog state
+  const [editPO, setEditPO] = useState<PurchaseOrder | null>(null);
+  const [editDate, setEditDate] = useState<Date>();
+  const [editVendorId, setEditVendorId] = useState("");
+  const [editItemId, setEditItemId] = useState("");
+  const [editQuantity, setEditQuantity] = useState("");
+  const [editPricePerTon, setEditPricePerTon] = useState("");
 
   const generatePONumber = () => {
     const count = getPurchaseOrders().length + 1;
@@ -67,10 +76,49 @@ export default function PurchaseOrders() {
     toast.success(`Purchase Order ${po.poNumber} created`);
   };
 
+  const getReceivedQty = (poId: string) =>
+    getPurchaseRecords()
+      .filter((r) => r.poId === poId)
+      .reduce((sum, r) => sum + r.quantity, 0);
+
+  const handleStartEdit = (po: PurchaseOrder) => {
+    setEditPO(po);
+    setEditDate(parse(po.date, "yyyy-MM-dd", new Date()));
+    setEditVendorId(po.vendorId);
+    const matchedItem = availableItems.find((i) => i.name === po.item);
+    setEditItemId(matchedItem?.id || "");
+    setEditQuantity(String(po.quantity));
+    setEditPricePerTon(String(po.pricePerTon));
+  };
+
+  const handleSaveEdit = () => {
+    if (!editDate || !editVendorId || !editItemId || !editQuantity || !editPricePerTon) {
+      toast.error("Please fill all fields"); return;
+    }
+    const qty = parseFloat(editQuantity);
+    const price = parseFloat(editPricePerTon);
+    if (isNaN(qty) || isNaN(price) || qty <= 0 || price <= 0) {
+      toast.error("Please enter valid numbers"); return;
+    }
+    const selectedItem = availableItems.find((i) => i.id === editItemId);
+    updatePurchaseOrder({
+      ...editPO!,
+      date: format(editDate, "yyyy-MM-dd"),
+      vendorId: editVendorId,
+      item: selectedItem?.name || "",
+      quantity: qty,
+      pricePerTon: price,
+      totalAmount: qty * price,
+    });
+    setOrders(getPurchaseOrders());
+    setEditPO(null);
+    toast.success("Purchase Order updated");
+  };
+
   const handleDelete = (id: string) => {
     const po = orders.find((o) => o.id === id);
-    if (po?.status === "fulfilled") {
-      toast.error("Cannot delete a fulfilled PO");
+    if (po?.status === "fulfilled" || po?.status === "partial") {
+      toast.error("Cannot delete a PO that has purchases recorded against it");
       return;
     }
     deletePurchaseOrder(id);
@@ -272,7 +320,9 @@ export default function PurchaseOrders() {
                     <th>Date</th>
                     <th>Vendor</th>
                     <th>Item</th>
-                    <th>Qty (tons)</th>
+                    <th>Ordered</th>
+                    <th>Received</th>
+                    <th>Remaining</th>
                     <th>Price/Ton (Rs)</th>
                     <th>Total (Rs)</th>
                     <th>Status</th>
@@ -280,42 +330,64 @@ export default function PurchaseOrders() {
                   </tr>
                 </thead>
                 <tbody>
-                  {[...filteredOrders].reverse().map((o) => (
-                    <tr key={o.id}>
-                      <td className="font-mono text-xs font-medium">{o.poNumber}</td>
-                      <td>{o.date}</td>
-                      <td className="font-medium">{getVendorName(o.vendorId)}</td>
-                      <td>{o.item || "—"}</td>
-                      <td>{o.quantity}</td>
-                      <td>Rs {o.pricePerTon}</td>
-                      <td className="font-medium">Rs {o.totalAmount.toLocaleString()}</td>
-                      <td>
-                        <Badge variant={o.status === "fulfilled" ? "default" : "secondary"} className="text-[10px]">
+                  {[...filteredOrders].reverse().map((o) => {
+                    const received = getReceivedQty(o.id);
+                    const remaining = o.quantity - received;
+                    return (
+                      <tr key={o.id}>
+                        <td className="font-mono text-xs font-medium">{o.poNumber}</td>
+                        <td>{o.date}</td>
+                        <td className="font-medium">{getVendorName(o.vendorId)}</td>
+                        <td>{o.item || "—"}</td>
+                        <td>{o.quantity}</td>
+                        <td>{received > 0 ? received : <span className="text-muted-foreground">—</span>}</td>
+                        <td>
                           {o.status === "fulfilled" ? (
-                            <span className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Fulfilled</span>
-                          ) : "Pending"}
-                        </Badge>
-                      </td>
-                      <td>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            title="View Details"
-                            onClick={() => { setSelectedPO(o); setModalOpen(true); }}
-                          >
-                            <Eye className="w-3.5 h-3.5 text-muted-foreground" />
-                          </Button>
-                          {o.status === "pending" && (
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(o.id)}>
-                              <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                            </Button>
+                            <span className="text-muted-foreground">—</span>
+                          ) : (
+                            <span className={remaining < o.quantity ? "text-amber-500 font-medium" : ""}>{remaining}</span>
                           )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td>Rs {o.pricePerTon}</td>
+                        <td className="font-medium">Rs {o.totalAmount.toLocaleString()}</td>
+                        <td>
+                          {o.status === "fulfilled" && (
+                            <Badge variant="default" className="text-[10px]">
+                              <span className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Fulfilled</span>
+                            </Badge>
+                          )}
+                          {o.status === "partial" && (
+                            <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-500">
+                              Partial
+                            </Badge>
+                          )}
+                          {o.status === "pending" && (
+                            <Badge variant="secondary" className="text-[10px]">Pending</Badge>
+                          )}
+                        </td>
+                        <td>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost" size="icon" className="h-8 w-8" title="View Details"
+                              onClick={() => { setSelectedPO(o); setModalOpen(true); }}
+                            >
+                              <Eye className="w-3.5 h-3.5 text-muted-foreground" />
+                            </Button>
+                            {o.status === "pending" && (
+                              <>
+                                <Button variant="ghost" size="icon" className="h-8 w-8" title="Edit" onClick={() => handleStartEdit(o)}>
+                                  <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(o.id)}>
+                                  <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -329,6 +401,71 @@ export default function PurchaseOrders() {
         onOpenChange={setModalOpen}
         vendorName={selectedPO ? getVendorName(selectedPO.vendorId) : ""}
       />
+
+      {/* Edit PO Dialog */}
+      <Dialog open={!!editPO} onOpenChange={(open) => !open && setEditPO(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="font-heading">Edit Purchase Order — {editPO?.poNumber}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal mt-1.5", !editDate && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {editDate ? format(editDate, "PPP") : "Pick date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={editDate} onSelect={setEditDate} initialFocus className="p-3 pointer-events-auto" />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div>
+                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Vendor</Label>
+                <Select value={editVendorId} onValueChange={setEditVendorId}>
+                  <SelectTrigger className="mt-1.5"><SelectValue placeholder="Select vendor" /></SelectTrigger>
+                  <SelectContent>
+                    {vendors.map((v) => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Item</Label>
+              <Select value={editItemId} onValueChange={setEditItemId}>
+                <SelectTrigger className="mt-1.5"><SelectValue placeholder="Select item" /></SelectTrigger>
+                <SelectContent>
+                  {availableItems.map((i) => <SelectItem key={i.id} value={i.id}>{i.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Quantity (tons)</Label>
+                <Input type="number" value={editQuantity} onChange={(e) => setEditQuantity(e.target.value)} className="mt-1.5" placeholder="0.00" />
+              </div>
+              <div>
+                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Price/Ton (Rs)</Label>
+                <Input type="number" value={editPricePerTon} onChange={(e) => setEditPricePerTon(e.target.value)} className="mt-1.5" placeholder="0.00" />
+              </div>
+            </div>
+            {editQuantity && editPricePerTon && !isNaN(parseFloat(editQuantity)) && !isNaN(parseFloat(editPricePerTon)) && (
+              <div className="rounded-lg bg-muted/50 border border-border/50 p-3 flex items-center justify-between">
+                <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Total Amount</span>
+                <span className="font-heading font-bold">Rs {(parseFloat(editQuantity) * parseFloat(editPricePerTon)).toLocaleString()}</span>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditPO(null)}>Cancel</Button>
+            <Button onClick={handleSaveEdit}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

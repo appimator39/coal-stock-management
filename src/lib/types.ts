@@ -26,7 +26,7 @@ export interface PurchaseOrder {
   quantity: number; // tons
   pricePerTon: number;
   totalAmount: number;
-  status: "pending" | "fulfilled";
+  status: "pending" | "partial" | "fulfilled";
 }
 
 export interface PurchaseRecord {
@@ -39,6 +39,8 @@ export interface PurchaseRecord {
   quantity: number; // tons
   pricePerTon: number;
   totalAmount: number;
+  builtyNumber?: string;
+  truckNumber?: string;
 }
 
 export interface Vendor {

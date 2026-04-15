@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import AppLayout from "./components/AppLayout";
+import { InstallPrompt } from "./components/InstallPrompt";
 import Dashboard from "./pages/Dashboard";
 import DailyLog from "./pages/DailyLog";
 import Vendors from "./pages/Vendors";
@@ -20,6 +21,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <InstallPrompt />
       <BrowserRouter>
         <Routes>
           <Route element={<AppLayout />}>

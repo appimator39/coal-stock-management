@@ -107,6 +107,11 @@ export function saveVendor(vendor: Vendor) {
   localStorage.setItem(VENDOR_KEY, JSON.stringify(vendors));
 }
 
+export function updateVendor(vendor: Vendor) {
+  const vendors = getVendors().map((v) => (v.id === vendor.id ? vendor : v));
+  localStorage.setItem(VENDOR_KEY, JSON.stringify(vendors));
+}
+
 export function deleteVendor(id: string) {
   const vendors = getVendors().filter((v) => v.id !== id);
   localStorage.setItem(VENDOR_KEY, JSON.stringify(vendors));
@@ -129,6 +134,11 @@ export function savePurchaseOrder(po: PurchaseOrder) {
 export function updatePurchaseOrder(po: PurchaseOrder) {
   const orders = getPurchaseOrders().map((o) => (o.id === po.id ? po : o));
   localStorage.setItem(PO_KEY, JSON.stringify(orders));
+}
+
+export function updatePurchaseRecord(record: PurchaseRecord) {
+  const records = getPurchaseRecords().map((r) => (r.id === record.id ? record : r));
+  localStorage.setItem(PURCHASE_KEY, JSON.stringify(records));
 }
 
 export function deletePurchaseOrder(id: string) {
