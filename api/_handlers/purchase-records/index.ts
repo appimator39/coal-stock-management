@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getDb } from '../../_lib/db';
-import { ensureInit } from '../../_lib/init';
-import { requireUser } from '../../_lib/auth';
-import { recomputePoStatus } from '../../_lib/po-status';
+import { getDb } from '../../_lib/db.js';
+import { ensureInit } from '../../_lib/init.js';
+import { requireUser } from '../../_lib/auth.js';
+import { recomputePoStatus } from '../../_lib/po-status.js';
 
 function prRow(r: any) {
   return {

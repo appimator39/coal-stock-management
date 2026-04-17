@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getUserFromRequest } from '../../_lib/auth';
-import { ensureInit } from '../../_lib/init';
+import { getUserFromRequest } from '../../_lib/auth.js';
+import { ensureInit } from '../../_lib/init.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {

@@ -1,6 +1,6 @@
-import { getDb } from './db';
-import { runMigrations } from './schema';
-import { ensureSeedUsers } from './auth';
+import { getDb } from './db.js';
+import { runMigrations } from './schema.js';
+import { ensureSeedUsers } from './auth.js';
 
 let _initialised: Promise<void> | null = null;
 

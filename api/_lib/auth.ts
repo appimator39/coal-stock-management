@@ -1,7 +1,7 @@
 import { SignJWT, jwtVerify } from 'jose';
 import bcrypt from 'bcryptjs';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getDb } from './db';
+import { getDb } from './db.js';
 
 const TOKEN_COOKIE = 'ct_auth';
 const TOKEN_TTL = '30d';

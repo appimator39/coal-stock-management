@@ -3,28 +3,28 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-import loginHandler from './_handlers/auth/login';
-import logoutHandler from './_handlers/auth/logout';
-import meHandler from './_handlers/auth/me';
-import changePasswordHandler from './_handlers/auth/change-password';
+import loginHandler from './_handlers/auth/login.js';
+import logoutHandler from './_handlers/auth/logout.js';
+import meHandler from './_handlers/auth/me.js';
+import changePasswordHandler from './_handlers/auth/change-password.js';
 
-import vendorsIndexHandler from './_handlers/vendors/index';
-import vendorIdHandler from './_handlers/vendors/[id]';
+import vendorsIndexHandler from './_handlers/vendors/index.js';
+import vendorIdHandler from './_handlers/vendors/[id].js';
 
-import itemsIndexHandler from './_handlers/items/index';
-import itemIdHandler from './_handlers/items/[id]';
+import itemsIndexHandler from './_handlers/items/index.js';
+import itemIdHandler from './_handlers/items/[id].js';
 
-import purchaseOrdersIndexHandler from './_handlers/purchase-orders/index';
-import purchaseOrderIdHandler from './_handlers/purchase-orders/[id]';
+import purchaseOrdersIndexHandler from './_handlers/purchase-orders/index.js';
+import purchaseOrderIdHandler from './_handlers/purchase-orders/[id].js';
 
-import purchaseRecordsIndexHandler from './_handlers/purchase-records/index';
-import purchaseRecordIdHandler from './_handlers/purchase-records/[id]';
+import purchaseRecordsIndexHandler from './_handlers/purchase-records/index.js';
+import purchaseRecordIdHandler from './_handlers/purchase-records/[id].js';
 
-import dailyRecordsIndexHandler from './_handlers/daily-records/index';
-import dailyRecordIdHandler from './_handlers/daily-records/[id]';
+import dailyRecordsIndexHandler from './_handlers/daily-records/index.js';
+import dailyRecordIdHandler from './_handlers/daily-records/[id].js';
 
-import settingsHandler from './_handlers/settings';
-import stockHandler from './_handlers/stock';
+import settingsHandler from './_handlers/settings.js';
+import stockHandler from './_handlers/stock.js';
 
 type Handler = (req: VercelRequest, res: VercelResponse) => unknown | Promise<unknown>;
 

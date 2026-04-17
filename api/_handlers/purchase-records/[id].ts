@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getDb } from '../../_lib/db';
-import { ensureInit } from '../../_lib/init';
-import { requireAdmin, requireUser } from '../../_lib/auth';
-import { recomputePoStatus } from '../../_lib/po-status';
+import { getDb } from '../../_lib/db.js';
+import { ensureInit } from '../../_lib/init.js';
+import { requireAdmin, requireUser } from '../../_lib/auth.js';
+import { recomputePoStatus } from '../../_lib/po-status.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
