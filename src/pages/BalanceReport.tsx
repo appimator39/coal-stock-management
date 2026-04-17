@@ -1,17 +1,47 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { getDailyRecords, getPurchaseRecords, getOpeningBalance, setOpeningBalance, resetAllData, flattenDailyItems } from "@/lib/store";
-import { Package, TrendingDown, TrendingUp, Scale, BarChart3, AlertTriangle, Layers } from "lucide-react";
+import {
+  getDailyRecords,
+  getPurchaseRecords,
+  getOpeningBalance,
+  setOpeningBalance,
+  flattenDailyItems,
+} from "@/lib/store";
+import {
+  Package,
+  TrendingDown,
+  TrendingUp,
+  Scale,
+  BarChart3,
+  Download,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import StatCard from "@/components/StatCard";
 import { toast } from "sonner";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip as ReTooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+  Legend,
+} from "recharts";
+import { useStoreTick } from "@/hooks/useStore";
+import { downloadCSV } from "@/lib/csv";
 
 export default function BalanceReport() {
-  const [opening, setOpening] = useState(getOpeningBalance());
+  useStoreTick();
+  const opening = getOpeningBalance();
   const [openingInput, setOpeningInput] = useState(String(opening));
+
+  useEffect(() => {
+    setOpeningInput(String(opening));
+  }, [opening]);
+
   const daily = getDailyRecords();
   const purchases = getPurchaseRecords();
   const flatItems = useMemo(() => flattenDailyItems(daily), [daily]);
@@ -23,12 +53,18 @@ export default function BalanceReport() {
     return { totalPurchased, totalConsumed, closing };
   }, [daily, purchases, opening]);
 
-  const handleSaveOpening = () => {
+  const handleSaveOpening = async () => {
     const val = parseFloat(openingInput);
-    if (isNaN(val)) { toast.error("Enter a valid number"); return; }
-    setOpeningBalance(val);
-    setOpening(val);
-    toast.success("Opening balance updated");
+    if (isNaN(val)) {
+      toast.error("Enter a valid number");
+      return;
+    }
+    try {
+      await setOpeningBalance(val);
+      toast.success("Opening balance updated");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to update");
+    }
   };
 
   const dateEntries = useMemo(() => {
@@ -66,9 +102,42 @@ export default function BalanceReport() {
       map.set(item, e);
     });
     return Array.from(map.entries())
-      .map(([item, { purchased, consumed }]) => ({ item, purchased, consumed, balance: purchased - consumed }))
+      .map(([item, { purchased, consumed }]) => ({
+        item,
+        purchased,
+        consumed,
+        balance: purchased - consumed,
+      }))
       .sort((a, b) => a.item.localeCompare(b.item));
   }, [flatItems, purchases]);
+
+  const exportItemBalances = () => {
+    if (itemBalances.length === 0) return;
+    downloadCSV(
+      `item-balance-${new Date().toISOString().slice(0, 10)}.csv`,
+      itemBalances.map((ib) => ({
+        Item: ib.item,
+        "Purchased (tons)": ib.purchased.toFixed(2),
+        "Consumed (tons)": ib.consumed.toFixed(2),
+        "In Stock (tons)": ib.balance.toFixed(2),
+      })),
+    );
+    toast.success("Item balance exported");
+  };
+
+  const exportDateBalances = () => {
+    if (dateEntries.length === 0) return;
+    downloadCSV(
+      `date-balance-${new Date().toISOString().slice(0, 10)}.csv`,
+      dateEntries.map((e) => ({
+        Date: e.date,
+        "Purchased (tons)": e.purchased,
+        "Consumed (tons)": e.consumed,
+        "Running Balance (tons)": e.balance.toFixed(2),
+      })),
+    );
+    toast.success("Date-wise balance exported");
+  };
 
   return (
     <div>
@@ -84,8 +153,15 @@ export default function BalanceReport() {
         <div className="form-section-body">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3">
             <div className="max-w-xs">
-              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Coal in stock (tons)</Label>
-              <Input type="number" value={openingInput} onChange={(e) => setOpeningInput(e.target.value)} className="mt-1.5" />
+              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Coal in stock (tons)
+              </Label>
+              <Input
+                type="number"
+                value={openingInput}
+                onChange={(e) => setOpeningInput(e.target.value)}
+                className="mt-1.5"
+              />
             </div>
             <Button onClick={handleSaveOpening}>Save Balance</Button>
           </div>
@@ -94,16 +170,90 @@ export default function BalanceReport() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard title="Opening Balance" value={opening.toFixed(1)} unit="tons" icon={Package} />
-        <StatCard title="Total Purchased" value={summary.totalPurchased.toFixed(1)} unit="tons" icon={TrendingUp} variant="success" />
-        <StatCard title="Total Consumed" value={summary.totalConsumed.toFixed(1)} unit="tons" icon={TrendingDown} variant="primary" />
-        <StatCard title="Closing Balance" value={summary.closing.toFixed(1)} unit="tons" icon={Scale} variant={summary.closing < 0 ? "warning" : "default"} />
+        <StatCard
+          title="Total Purchased"
+          value={summary.totalPurchased.toFixed(1)}
+          unit="tons"
+          icon={TrendingUp}
+          variant="success"
+        />
+        <StatCard
+          title="Total Consumed"
+          value={summary.totalConsumed.toFixed(1)}
+          unit="tons"
+          icon={TrendingDown}
+          variant="primary"
+        />
+        <StatCard
+          title="Closing Balance"
+          value={summary.closing.toFixed(1)}
+          unit="tons"
+          icon={Scale}
+          variant={summary.closing < 0 ? "warning" : "default"}
+        />
       </div>
+
+      {dateEntries.length > 1 && (
+        <div className="content-card mb-6">
+          <div className="content-card-header">
+            <h2 className="font-heading font-semibold text-sm">Running Balance Trend</h2>
+            <span className="text-xs text-muted-foreground">{dateEntries.length} data points</span>
+          </div>
+          <div className="content-card-body">
+            <div className="w-full h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={dateEntries}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="date" fontSize={11} />
+                  <YAxis fontSize={11} />
+                  <ReTooltip />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="balance"
+                    name="Running Balance"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="purchased"
+                    name="Purchased"
+                    stroke="hsl(var(--success))"
+                    strokeWidth={1.5}
+                    dot={false}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="consumed"
+                    name="Consumed"
+                    stroke="hsl(var(--destructive))"
+                    strokeWidth={1.5}
+                    dot={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      )}
 
       {itemBalances.length > 0 && (
         <div className="content-card mb-6">
           <div className="content-card-header">
             <h2 className="font-heading font-semibold text-sm">Item-wise Coal Balance</h2>
-            <span className="text-xs text-muted-foreground">{itemBalances.length} items</span>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs"
+                onClick={exportItemBalances}
+              >
+                <Download className="w-3.5 h-3.5 mr-1.5" /> CSV
+              </Button>
+              <span className="text-xs text-muted-foreground">{itemBalances.length} items</span>
+            </div>
           </div>
           <div className="content-card-body p-0">
             <div className="overflow-x-auto">
@@ -122,14 +272,29 @@ export default function BalanceReport() {
                       <td className="font-medium">{ib.item}</td>
                       <td className="text-success font-medium">+{ib.purchased.toFixed(1)}</td>
                       <td className="text-primary font-medium">-{ib.consumed.toFixed(1)}</td>
-                      <td className={cn("font-bold", ib.balance < 0 ? "text-destructive" : "text-foreground")}>{ib.balance.toFixed(1)}</td>
+                      <td
+                        className={cn("font-bold", ib.balance < 0 ? "text-destructive" : "text-foreground")}
+                      >
+                        {ib.balance.toFixed(1)}
+                      </td>
                     </tr>
                   ))}
                   <tr className="bg-muted/30">
                     <td className="font-bold">Total</td>
-                    <td className="font-bold text-success">+{itemBalances.reduce((s, i) => s + i.purchased, 0).toFixed(1)}</td>
-                    <td className="font-bold text-primary">-{itemBalances.reduce((s, i) => s + i.consumed, 0).toFixed(1)}</td>
-                    <td className={cn("font-bold", summary.closing < 0 ? "text-destructive" : "text-foreground")}>{itemBalances.reduce((s, i) => s + i.balance, 0).toFixed(1)}</td>
+                    <td className="font-bold text-success">
+                      +{itemBalances.reduce((s, i) => s + i.purchased, 0).toFixed(1)}
+                    </td>
+                    <td className="font-bold text-primary">
+                      -{itemBalances.reduce((s, i) => s + i.consumed, 0).toFixed(1)}
+                    </td>
+                    <td
+                      className={cn(
+                        "font-bold",
+                        summary.closing < 0 ? "text-destructive" : "text-foreground",
+                      )}
+                    >
+                      {itemBalances.reduce((s, i) => s + i.balance, 0).toFixed(1)}
+                    </td>
                   </tr>
                 </tbody>
               </table>
@@ -141,14 +306,29 @@ export default function BalanceReport() {
       <div className="content-card">
         <div className="content-card-header">
           <h2 className="font-heading font-semibold text-sm">Date-wise Balance</h2>
-          <span className="text-xs text-muted-foreground">{dateEntries.length} entries</span>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs"
+              onClick={exportDateBalances}
+              disabled={dateEntries.length === 0}
+            >
+              <Download className="w-3.5 h-3.5 mr-1.5" /> CSV
+            </Button>
+            <span className="text-xs text-muted-foreground">{dateEntries.length} entries</span>
+          </div>
         </div>
         <div className="content-card-body p-0">
           {dateEntries.length === 0 ? (
             <div className="empty-state">
-              <div className="empty-state-icon"><BarChart3 className="w-5 h-5 text-muted-foreground" /></div>
+              <div className="empty-state-icon">
+                <BarChart3 className="w-5 h-5 text-muted-foreground" />
+              </div>
               <p className="empty-state-title">No data available</p>
-              <p className="empty-state-text">Add daily log entries and purchases to see the running balance.</p>
+              <p className="empty-state-text">
+                Add daily log entries and purchases to see the running balance.
+              </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -165,9 +345,17 @@ export default function BalanceReport() {
                   {dateEntries.map((e) => (
                     <tr key={e.date}>
                       <td className="font-medium">{e.date}</td>
-                      <td className="text-success font-medium">{e.purchased > 0 ? `+${e.purchased}` : "—"}</td>
-                      <td className="text-primary font-medium">{e.consumed > 0 ? `-${e.consumed}` : "—"}</td>
-                      <td className={cn("font-bold", e.balance < 0 ? "text-destructive" : "text-foreground")}>{e.balance.toFixed(1)}</td>
+                      <td className="text-success font-medium">
+                        {e.purchased > 0 ? `+${e.purchased}` : "—"}
+                      </td>
+                      <td className="text-primary font-medium">
+                        {e.consumed > 0 ? `-${e.consumed}` : "—"}
+                      </td>
+                      <td
+                        className={cn("font-bold", e.balance < 0 ? "text-destructive" : "text-foreground")}
+                      >
+                        {e.balance.toFixed(1)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -177,36 +365,13 @@ export default function BalanceReport() {
         </div>
       </div>
 
-      <div className="content-card mt-6">
-        <div className="content-card-header">
-          <h2 className="font-heading font-semibold text-sm text-destructive">Danger Zone</h2>
-        </div>
-        <div className="content-card-body">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div>
-              <p className="font-medium text-sm">Reset All Data</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Permanently delete all records — daily logs, purchases, vendors, items, purchase orders, and balance. This cannot be undone.</p>
-            </div>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive" size="sm"><AlertTriangle className="w-4 h-4 mr-2" /> Reset All Data</Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                  <AlertDialogDescription>This will permanently delete all data including daily logs, purchase orders, purchases, vendors, items, and opening balance. There is no way to recover this data.</AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => { resetAllData(); toast.success("All data has been reset"); window.location.reload(); }}>
-                    Yes, Reset Everything
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </div>
-      </div>
+      <p className="text-xs text-muted-foreground mt-6 text-center">
+        For backup &amp; reset actions, open the{" "}
+        <a href="/settings" className="text-primary underline">
+          Settings page
+        </a>
+        .
+      </p>
     </div>
   );
 }

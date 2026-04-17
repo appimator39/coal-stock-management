@@ -15,11 +15,13 @@ import {
   updatePurchaseRecord,
   deletePurchaseRecord,
   getPurchaseOrders,
-  updatePurchaseOrder,
   getVendors,
 } from "@/lib/store";
 import { PurchaseRecord } from "@/lib/types";
 import { toast } from "sonner";
+import { useStoreTick } from "@/hooks/useStore";
+import { downloadCSV } from "@/lib/csv";
+import { Download, Search } from "lucide-react";
 
 function getReceivedQty(poId: string, excludeId?: string): number {
   return getPurchaseRecords()
@@ -28,12 +30,14 @@ function getReceivedQty(poId: string, excludeId?: string): number {
 }
 
 export default function Purchases() {
-  const [records, setRecords] = useState<PurchaseRecord[]>(getPurchaseRecords());
+  useStoreTick();
+  const records = getPurchaseRecords();
   const [date, setDate] = useState<Date>();
   const [selectedPoId, setSelectedPoId] = useState("");
   const [quantity, setQuantity] = useState("");
   const [builtyNumber, setBuiltyNumber] = useState("");
   const [truckNumber, setTruckNumber] = useState("");
+  const [search, setSearch] = useState("");
 
   // View dialog
   const [viewRecord, setViewRecord] = useState<PurchaseRecord | null>(null);
@@ -72,7 +76,7 @@ export default function Purchases() {
   const enteredQty = parseFloat(quantity) || 0;
   const exceedsBalance = enteredQty > remainingQty && remainingQty > 0;
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!date || !selectedPoId || !quantity) {
       toast.error("Please fill all required fields"); return;
     }
@@ -99,37 +103,29 @@ export default function Purchases() {
       truckNumber: truckNumber.trim() || undefined,
     };
 
-    savePurchaseRecord(record);
-    const newTotal = getReceivedQty(selectedPO.id) + qty;
-    updatePurchaseOrder({
-      ...selectedPO,
-      status: newTotal >= selectedPO.quantity ? "fulfilled" : "partial",
-    });
-
-    setRecords(getPurchaseRecords());
-    setDate(undefined); setSelectedPoId(""); setQuantity("");
-    setBuiltyNumber(""); setTruckNumber("");
-
-    const stillRemaining = selectedPO.quantity - newTotal;
-    if (stillRemaining <= 0) {
-      toast.success(`${selectedPO.poNumber} fully fulfilled`);
-    } else {
-      toast.success(`Recorded ${qty} tons — ${stillRemaining} tons balance remaining on ${selectedPO.poNumber}`);
+    try {
+      await savePurchaseRecord(record);
+      const newTotal = getReceivedQty(selectedPO.id) + qty;
+      setDate(undefined); setSelectedPoId(""); setQuantity("");
+      setBuiltyNumber(""); setTruckNumber("");
+      const stillRemaining = selectedPO.quantity - newTotal;
+      if (stillRemaining <= 0) {
+        toast.success(`${selectedPO.poNumber} fully fulfilled`);
+      } else {
+        toast.success(`Recorded ${qty} tons — ${stillRemaining} tons balance remaining on ${selectedPO.poNumber}`);
+      }
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to record purchase");
     }
   };
 
-  const handleDelete = (id: string) => {
-    const record = records.find((r) => r.id === id);
-    if (record) {
-      const po = allPOs.find((p) => p.id === record.poId);
-      if (po) {
-        const remaining = getReceivedQty(po.id) - record.quantity;
-        updatePurchaseOrder({ ...po, status: remaining <= 0 ? "pending" : "partial" });
-      }
+  const handleDelete = async (id: string) => {
+    try {
+      await deletePurchaseRecord(id);
+      toast.success("Record deleted, PO balance restored");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to delete record");
     }
-    deletePurchaseRecord(id);
-    setRecords(getPurchaseRecords());
-    toast.success("Record deleted, PO balance restored");
   };
 
   // Edit handlers
@@ -141,7 +137,7 @@ export default function Purchases() {
     setEditTruck(r.truckNumber || "");
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editRecord || !editDate || !editQuantity) {
       toast.error("Please fill all required fields"); return;
     }
@@ -166,20 +162,48 @@ export default function Purchases() {
       truckNumber: editTruck.trim() || undefined,
     };
 
-    updatePurchaseRecord(updated);
-
-    // Recalculate PO status
-    if (po) {
-      const newTotal = getReceivedQty(po.id, editRecord.id) + qty;
-      updatePurchaseOrder({
-        ...po,
-        status: newTotal >= po.quantity ? "fulfilled" : newTotal > 0 ? "partial" : "pending",
-      });
+    try {
+      await updatePurchaseRecord(updated);
+      setEditRecord(null);
+      toast.success("Purchase record updated");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to update record");
     }
+  };
 
-    setRecords(getPurchaseRecords());
-    setEditRecord(null);
-    toast.success("Purchase record updated");
+  const filteredRecords = records.filter((r) => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return (
+      r.poNumber.toLowerCase().includes(q) ||
+      r.vendor.toLowerCase().includes(q) ||
+      (r.builtyNumber ?? "").toLowerCase().includes(q) ||
+      (r.truckNumber ?? "").toLowerCase().includes(q) ||
+      (r.item ?? "").toLowerCase().includes(q) ||
+      r.date.includes(q)
+    );
+  });
+
+  const handleExportCSV = () => {
+    if (filteredRecords.length === 0) {
+      toast.error("No records to export");
+      return;
+    }
+    downloadCSV(
+      `purchases-${new Date().toISOString().slice(0, 10)}.csv`,
+      filteredRecords.map((r) => ({
+        Date: r.date,
+        "PO #": r.poNumber,
+        Vendor: r.vendor,
+        Item: r.item,
+        "Builty #": r.builtyNumber ?? "",
+        "Truck #": r.truckNumber ?? "",
+        "Qty (tons)": r.quantity,
+        "Price/Ton (Rs)": r.pricePerTon,
+        "Total (Rs)": r.totalAmount,
+      })),
+    );
+    toast.success("Purchases exported");
   };
 
   // Edit dialog max allowed qty
@@ -332,10 +356,24 @@ export default function Purchases() {
       <div className="content-card">
         <div className="content-card-header">
           <h2 className="font-heading font-semibold text-sm">Purchase History</h2>
-          <span className="text-xs text-muted-foreground">{records.length} purchases</span>
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search…"
+                className="h-8 pl-7 pr-3 w-48 text-xs"
+              />
+            </div>
+            <Button size="sm" variant="outline" className="h-8 text-xs" onClick={handleExportCSV}>
+              <Download className="w-3.5 h-3.5 mr-1.5" /> CSV
+            </Button>
+            <span className="text-xs text-muted-foreground">{filteredRecords.length} / {records.length}</span>
+          </div>
         </div>
         <div className="content-card-body p-0">
-          {records.length === 0 ? (
+          {filteredRecords.length === 0 ? (
             <div className="empty-state">
               <div className="empty-state-icon"><ShoppingCart className="w-5 h-5 text-muted-foreground" /></div>
               <p className="empty-state-title">No purchases yet</p>
@@ -357,7 +395,7 @@ export default function Purchases() {
                   </tr>
                 </thead>
                 <tbody>
-                  {[...records].reverse().map((r) => (
+                  {filteredRecords.map((r) => (
                     <tr key={r.id}>
                       <td className="font-medium">{r.date}</td>
                       <td className="font-mono text-xs">{r.poNumber}</td>

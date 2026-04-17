@@ -1,4 +1,5 @@
 export interface DailyRecordItem {
+  id?: string;
   itemName: string;
   quantity: number; // tons
   costPerTon: number;
@@ -11,6 +12,7 @@ export interface DailyRecord {
   steamProduced: number; // tons
   totalCoal: number; // sum of all item quantities
   totalCost: number;
+  notes?: string;
   // Legacy fields for backward compat with old localStorage data
   item?: string;
   coalConsumed?: number;
@@ -27,6 +29,7 @@ export interface PurchaseOrder {
   pricePerTon: number;
   totalAmount: number;
   status: "pending" | "partial" | "fulfilled";
+  notes?: string;
 }
 
 export interface PurchaseRecord {
@@ -41,16 +44,22 @@ export interface PurchaseRecord {
   totalAmount: number;
   builtyNumber?: string;
   truckNumber?: string;
+  notes?: string;
 }
 
 export interface Vendor {
   id: string;
   name: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  notes?: string;
 }
 
 export interface Item {
   id: string;
   name: string;
+  description?: string;
 }
 
 export interface BalanceSummary {

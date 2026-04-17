@@ -5,13 +5,55 @@ import { getDailyRecords, getPurchaseRecords, getOpeningBalance, flattenDailyIte
 import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
+import { format, subDays } from "date-fns";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip as ReTooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+  Legend,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
+import { useStoreTick } from "@/hooks/useStore";
+
+const CHART_COLORS = ["hsl(24, 100%, 50%)", "hsl(142, 71%, 45%)", "hsl(38, 92%, 50%)", "hsl(213, 85%, 55%)", "hsl(280, 70%, 55%)", "hsl(0, 84%, 60%)"];
 
 export default function Dashboard() {
+  useStoreTick();
   const daily = getDailyRecords();
   const purchases = getPurchaseRecords();
   const opening = getOpeningBalance();
   const flatItems = useMemo(() => flattenDailyItems(daily), [daily]);
+
+  const last14DaysConsumption = useMemo(() => {
+    const days: Array<{ date: string; consumed: number; steam: number }> = [];
+    for (let i = 13; i >= 0; i--) {
+      const d = format(subDays(new Date(), i), "yyyy-MM-dd");
+      const dayRecs = daily.filter((r) => r.date === d);
+      days.push({
+        date: format(subDays(new Date(), i), "dd MMM"),
+        consumed: dayRecs.reduce((s, r) => s + r.totalCoal, 0),
+        steam: dayRecs.reduce((s, r) => s + r.steamProduced, 0),
+      });
+    }
+    return days;
+  }, [daily]);
+
+  const consumptionByItem = useMemo(() => {
+    const map = new Map<string, number>();
+    flatItems.forEach((i) => {
+      map.set(i.itemName, (map.get(i.itemName) ?? 0) + i.quantity);
+    });
+    return Array.from(map.entries())
+      .map(([name, value]) => ({ name, value: parseFloat(value.toFixed(2)) }))
+      .filter((d) => d.value > 0)
+      .sort((a, b) => b.value - a.value);
+  }, [flatItems]);
 
   const today = format(new Date(), "yyyy-MM-dd");
   const currentMonth = format(new Date(), "yyyy-MM");
@@ -135,6 +177,64 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {daily.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
+          <div className="content-card lg:col-span-2">
+            <div className="content-card-header">
+              <h2 className="font-heading font-semibold text-sm">Consumption & Steam — Last 14 Days</h2>
+            </div>
+            <div className="content-card-body">
+              <div className="w-full h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={last14DaysConsumption}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis dataKey="date" fontSize={10} />
+                    <YAxis fontSize={10} />
+                    <ReTooltip />
+                    <Legend />
+                    <Bar dataKey="consumed" name="Coal (t)" fill="hsl(var(--primary))" />
+                    <Bar dataKey="steam" name="Steam (t)" fill="hsl(var(--success))" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+          <div className="content-card">
+            <div className="content-card-header">
+              <h2 className="font-heading font-semibold text-sm">Consumption by Item</h2>
+            </div>
+            <div className="content-card-body">
+              {consumptionByItem.length === 0 ? (
+                <p className="text-center text-xs text-muted-foreground py-8">
+                  No consumption data yet.
+                </p>
+              ) : (
+                <div className="w-full h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={consumptionByItem}
+                        dataKey="value"
+                        nameKey="name"
+                        outerRadius={80}
+                        label={({ name, percent }) =>
+                          `${name} (${((percent ?? 0) * 100).toFixed(0)}%)`
+                        }
+                      >
+                        {consumptionByItem.map((_, i) => (
+                          <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <ReTooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {itemBalances.length > 0 && (
         <div className="content-card mb-8">

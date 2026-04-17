@@ -6,14 +6,29 @@ import { Label } from "@/components/ui/label";
 import { getItems, saveItem, updateItem, deleteItem } from "@/lib/store";
 import { Item } from "@/lib/types";
 import { toast } from "sonner";
+import { useStoreTick } from "@/hooks/useStore";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function Items() {
-  const [items, setItems] = useState<Item[]>(getItems());
+  useStoreTick();
+  const items = getItems();
   const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  const [editDesc, setEditDesc] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!name.trim()) {
       toast.error("Please enter an item name");
       return;
@@ -22,19 +37,27 @@ export default function Items() {
       toast.error("Item already exists");
       return;
     }
-    const item: Item = { id: crypto.randomUUID(), name: name.trim() };
-    saveItem(item);
-    setItems(getItems());
-    setName("");
-    toast.success("Item added");
+    try {
+      await saveItem({
+        id: crypto.randomUUID(),
+        name: name.trim(),
+        description: description.trim() || undefined,
+      });
+      setName("");
+      setDescription("");
+      toast.success("Item added");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to add item");
+    }
   };
 
   const handleStartEdit = (item: Item) => {
     setEditingId(item.id);
     setEditName(item.name);
+    setEditDesc(item.description ?? "");
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editName.trim()) {
       toast.error("Item name cannot be empty");
       return;
@@ -43,22 +66,37 @@ export default function Items() {
       toast.error("Item name already exists");
       return;
     }
-    updateItem({ id: editingId!, name: editName.trim() });
-    setItems(getItems());
-    setEditingId(null);
-    setEditName("");
-    toast.success("Item updated");
+    try {
+      await updateItem({
+        id: editingId!,
+        name: editName.trim(),
+        description: editDesc.trim() || undefined,
+      });
+      setEditingId(null);
+      setEditName("");
+      setEditDesc("");
+      toast.success("Item updated");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to update item");
+    }
   };
 
   const handleCancelEdit = () => {
     setEditingId(null);
     setEditName("");
+    setEditDesc("");
   };
 
-  const handleDelete = (id: string) => {
-    deleteItem(id);
-    setItems(getItems());
-    toast.success("Item deleted");
+  const handleDelete = async () => {
+    if (!deletingId) return;
+    try {
+      await deleteItem(deletingId);
+      setDeletingId(null);
+      toast.success("Item deleted");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to delete item");
+      setDeletingId(null);
+    }
   };
 
   return (
@@ -73,9 +111,11 @@ export default function Items() {
           <h2 className="font-heading font-semibold text-sm">Add New Item</h2>
         </div>
         <div className="form-section-body">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3">
-            <div className="flex-1 max-w-md">
-              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Item Name</Label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Item Name *
+              </Label>
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -84,6 +124,19 @@ export default function Items() {
                 onKeyDown={(e) => e.key === "Enter" && handleAdd()}
               />
             </div>
+            <div>
+              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Description
+              </Label>
+              <Input
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="mt-1.5"
+                placeholder="Optional description"
+              />
+            </div>
+          </div>
+          <div className="mt-4 flex justify-end">
             <Button onClick={handleAdd}>
               <Plus className="w-4 h-4 mr-2" /> Add Item
             </Button>
@@ -108,7 +161,10 @@ export default function Items() {
           ) : (
             <div className="divide-y divide-border/50">
               {items.map((item) => (
-                <div key={item.id} className="flex items-center justify-between px-6 py-3.5 hover:bg-muted/30 transition-colors">
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between px-6 py-3.5 hover:bg-muted/30 transition-colors"
+                >
                   {editingId === item.id ? (
                     <div className="flex items-center gap-2 flex-1 mr-2">
                       <Input
@@ -120,27 +176,59 @@ export default function Items() {
                           if (e.key === "Escape") handleCancelEdit();
                         }}
                         autoFocus
+                        placeholder="Name"
                       />
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-success" onClick={handleSaveEdit}>
+                      <Input
+                        value={editDesc}
+                        onChange={(e) => setEditDesc(e.target.value)}
+                        className="max-w-sm h-9"
+                        placeholder="Description (optional)"
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-success"
+                        onClick={handleSaveEdit}
+                      >
                         <Check className="w-4 h-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleCancelEdit}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={handleCancelEdit}
+                      >
                         <X className="w-4 h-4" />
                       </Button>
                     </div>
                   ) : (
                     <>
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center shrink-0">
                           <Package className="w-3.5 h-3.5 text-muted-foreground" />
                         </div>
-                        <span className="font-medium text-sm">{item.name}</span>
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm truncate">{item.name}</p>
+                          {item.description && (
+                            <p className="text-xs text-muted-foreground truncate">{item.description}</p>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleStartEdit(item)}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleStartEdit(item)}
+                        >
                           <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(item.id)}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => setDeletingId(item.id)}
+                        >
                           <Trash2 className="w-3.5 h-3.5 text-destructive" />
                         </Button>
                       </div>
@@ -152,6 +240,27 @@ export default function Items() {
           )}
         </div>
       </div>
+
+      <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete item?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the item. If the item is referenced by any purchase order,
+              receipt, or daily log entry, deletion will be blocked.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleDelete}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -12,6 +12,16 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       overlay: false,
     },
+    // Proxy /api to Vercel dev (run `vercel dev` on port 3000) so auth cookies
+    // work locally. If you're not running Vercel dev, set VITE_API_PROXY env
+    // var to your own deployment URL.
+    proxy: {
+      "/api": {
+        target: process.env.VITE_API_PROXY ?? "http://localhost:3000",
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
   plugins: [
     react(),
@@ -29,6 +39,13 @@ export default defineConfig(({ mode }) => ({
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true,
+        // Don't cache API calls — they're dynamic and require auth.
+        runtimeCaching: [
+          {
+            urlPattern: /^\/api\//,
+            handler: "NetworkOnly",
+          },
+        ],
       },
       manifest: {
         id: "/",

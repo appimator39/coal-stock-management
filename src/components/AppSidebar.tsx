@@ -1,21 +1,49 @@
-import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { Flame, LayoutDashboard, CalendarDays, ShoppingCart, BarChart3, Users, ClipboardList, ChevronLeft, Menu, Package } from "lucide-react";
+import {
+  Flame,
+  LayoutDashboard,
+  CalendarDays,
+  ShoppingCart,
+  BarChart3,
+  Users,
+  ClipboardList,
+  ChevronLeft,
+  Package,
+  Settings as SettingsIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { useAuth } from "@/components/AuthProvider";
+import type { Role } from "@/lib/auth";
 
-const links = [
+type NavItem = {
+  to: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  requires?: Role; // if set, only show for that role
+};
+
+const links: NavItem[] = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/daily-log", label: "Daily Log", icon: CalendarDays },
-  { to: "/vendors", label: "Vendors", icon: Users },
-  { to: "/items", label: "Items", icon: Package },
+  { to: "/vendors", label: "Vendors", icon: Users, requires: "admin" },
+  { to: "/items", label: "Items", icon: Package, requires: "admin" },
   { to: "/purchase-orders", label: "Purchase Orders", icon: ClipboardList },
   { to: "/purchases", label: "Purchases", icon: ShoppingCart },
   { to: "/balance", label: "Balance Report", icon: BarChart3 },
+  { to: "/settings", label: "Settings", icon: SettingsIcon, requires: "admin" },
 ];
 
-export default function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
+export default function AppSidebar({
+  collapsed,
+  onToggle,
+}: {
+  collapsed: boolean;
+  onToggle: () => void;
+}) {
   const location = useLocation();
+  const { user } = useAuth();
+
+  const visible = links.filter((l) => !l.requires || l.requires === user?.role);
 
   return (
     <>
@@ -27,38 +55,45 @@ export default function AppSidebar({ collapsed, onToggle }: { collapsed: boolean
       <aside
         className={cn(
           "fixed top-0 left-0 z-50 h-screen bg-coal text-coal-foreground flex flex-col transition-all duration-300 ease-in-out",
-          "lg:relative lg:z-auto",
-          collapsed ? "-translate-x-full lg:translate-x-0 lg:w-[72px]" : "translate-x-0 w-[260px]"
+          "lg:relative lg:z-auto lg:shrink-0",
+          collapsed ? "-translate-x-full lg:translate-x-0 lg:w-[72px]" : "translate-x-0 w-[260px]",
         )}
       >
-        {/* Logo */}
-        <div className={cn("flex items-center gap-3 border-b border-sidebar-border transition-all", collapsed ? "px-4 py-5 justify-center" : "px-5 py-5")}>
+        <div
+          className={cn(
+            "flex items-center gap-3 border-b border-sidebar-border transition-all shrink-0",
+            collapsed ? "px-4 py-5 justify-center" : "px-5 py-5",
+          )}
+        >
           <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center shrink-0">
             <Flame className="w-5 h-5 text-primary-foreground" />
           </div>
           {!collapsed && (
             <div className="overflow-hidden">
-              <h1 className="font-heading font-bold text-sm text-coal-foreground leading-tight">Coal Consumption</h1>
+              <h1 className="font-heading font-bold text-sm text-coal-foreground leading-tight">
+                Coal Consumption
+              </h1>
               <p className="text-[11px] text-coal-foreground/50">Tracking App</p>
             </div>
           )}
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {links.map((link) => {
+        <nav className="flex-1 min-h-0 px-3 py-4 space-y-1 overflow-y-auto">
+          {visible.map((link) => {
             const isActive = location.pathname === link.to;
             return (
               <NavLink
                 key={link.to}
                 to={link.to}
-                onClick={() => { if (window.innerWidth < 1024) onToggle(); }}
+                onClick={() => {
+                  if (window.innerWidth < 1024) onToggle();
+                }}
                 className={cn(
                   "flex items-center gap-3 rounded-lg text-sm font-medium transition-all duration-200",
                   collapsed ? "px-0 py-2.5 justify-center" : "px-3 py-2.5",
                   isActive
                     ? "bg-primary/15 text-primary"
-                    : "text-coal-foreground/60 hover:bg-sidebar-accent hover:text-coal-foreground"
+                    : "text-coal-foreground/60 hover:bg-sidebar-accent hover:text-coal-foreground",
                 )}
                 title={collapsed ? link.label : undefined}
               >
@@ -69,13 +104,12 @@ export default function AppSidebar({ collapsed, onToggle }: { collapsed: boolean
           })}
         </nav>
 
-        {/* Collapse button (desktop only) */}
-        <div className="hidden lg:flex border-t border-sidebar-border p-3">
+        <div className="hidden lg:flex border-t border-sidebar-border p-3 shrink-0">
           <button
             onClick={onToggle}
             className={cn(
               "flex items-center gap-2 rounded-lg text-sm text-coal-foreground/60 hover:text-coal-foreground hover:bg-sidebar-accent transition-colors w-full",
-              collapsed ? "justify-center px-0 py-2" : "px-3 py-2"
+              collapsed ? "justify-center px-0 py-2" : "px-3 py-2",
             )}
           >
             <ChevronLeft className={cn("w-4 h-4 transition-transform", collapsed && "rotate-180")} />

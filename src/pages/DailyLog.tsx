@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, Plus, Trash2, CalendarDays, Info, X, Layers, Pencil } from "lucide-react";
+import { CalendarIcon, Plus, Trash2, CalendarDays, Info, X, Layers, Pencil, Download, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,10 +8,13 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { getDailyRecords, saveDailyRecord, deleteDailyRecord, updateDailyRecord, getPurchaseRecords, getItems } from "@/lib/store";
+import { getDailyRecords, saveDailyRecord, deleteDailyRecord, updateDailyRecord, getPurchaseRecords, getItems, getStockByItem } from "@/lib/store";
 import { DailyRecord, DailyRecordItem } from "@/lib/types";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useStoreTick } from "@/hooks/useStore";
+import { downloadCSV } from "@/lib/csv";
+import { AlertTriangle } from "lucide-react";
 
 interface ItemLine {
   id: string;
@@ -22,12 +25,16 @@ interface ItemLine {
 }
 
 export default function DailyLog() {
-  const [records, setRecords] = useState<DailyRecord[]>(getDailyRecords());
+  useStoreTick();
+  const records = getDailyRecords();
   const [date, setDate] = useState<Date>();
   const [steamProduced, setSteamProduced] = useState("");
   const [itemLines, setItemLines] = useState<ItemLine[]>([]);
   const [costOverride, setCostOverride] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
 
   const availableItems = getItems();
 
@@ -60,6 +67,40 @@ export default function DailyLog() {
     return { totalQty, avgRate };
   }, [itemLines]);
 
+  // Available stock per item — excludes the record being edited so its current
+  // consumption doesn't count against itself.
+  const stockByItem = useMemo(
+    () => getStockByItem(editingId ?? undefined),
+    [editingId, records],
+  );
+
+  // Per-line stock check: an item used on several lines in this form shares a
+  // single available pool. The first line consumes from its own qty up first,
+  // subsequent lines only have what's left.
+  const lineStockStatus = useMemo(() => {
+    // Sum this form's entered quantities per item name
+    const consumingByName: Record<string, number> = {};
+    itemLines.forEach((l) => {
+      if (!l.itemName) return;
+      consumingByName[l.itemName] =
+        (consumingByName[l.itemName] ?? 0) + (parseFloat(l.quantity) || 0);
+    });
+    const statuses: Record<string, { available: number; requested: number; exceeds: boolean }> = {};
+    itemLines.forEach((l) => {
+      if (!l.itemName) return;
+      const available = stockByItem[l.itemName] ?? 0;
+      const requested = consumingByName[l.itemName] ?? 0;
+      statuses[l.id] = {
+        available,
+        requested,
+        exceeds: requested > available + 1e-6,
+      };
+    });
+    return statuses;
+  }, [itemLines, stockByItem]);
+
+  const hasStockError = Object.values(lineStockStatus).some((s) => s.exceeds);
+
   const effectiveCostPerTon = costOverride !== "" ? parseFloat(costOverride) || 0 : combinedStats.avgRate;
 
   const addItemLine = () => {
@@ -90,7 +131,7 @@ export default function DailyLog() {
     setEditingId(null);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!date || itemLines.length === 0 || !steamProduced) {
       toast.error("Please fill date, add at least one item, and enter steam produced");
       return;
@@ -99,6 +140,22 @@ export default function DailyLog() {
     if (isNaN(steam)) { toast.error("Invalid steam value"); return; }
     const validLines = itemLines.filter((l) => l.itemId && parseFloat(l.quantity) > 0);
     if (validLines.length === 0) { toast.error("Please select items and enter quantities"); return; }
+
+    // Stock guard: total requested per item must not exceed available stock.
+    const requestedPerItem: Record<string, number> = {};
+    validLines.forEach((l) => {
+      requestedPerItem[l.itemName] =
+        (requestedPerItem[l.itemName] ?? 0) + parseFloat(l.quantity);
+    });
+    for (const [itemName, requested] of Object.entries(requestedPerItem)) {
+      const available = stockByItem[itemName] ?? 0;
+      if (requested > available + 1e-6) {
+        toast.error(
+          `Not enough "${itemName}" in stock — requested ${requested.toFixed(2)}t but only ${available.toFixed(2)}t available.`,
+        );
+        return;
+      }
+    }
 
     const items: DailyRecordItem[] = validLines.map((line) => {
       const qty = parseFloat(line.quantity);
@@ -118,16 +175,18 @@ export default function DailyLog() {
       totalCost: parseFloat(totalCost.toFixed(2)),
     };
 
-    if (editingId) {
-      updateDailyRecord(record);
-      toast.success("Record updated");
-    } else {
-      saveDailyRecord(record);
-      toast.success("Record added");
+    try {
+      if (editingId) {
+        await updateDailyRecord(record);
+        toast.success("Record updated");
+      } else {
+        await saveDailyRecord(record);
+        toast.success("Record added");
+      }
+      resetForm();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to save record");
     }
-
-    setRecords(getDailyRecords());
-    resetForm();
   };
 
   const handleEdit = (r: DailyRecord) => {
@@ -151,14 +210,67 @@ export default function DailyLog() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handleDelete = (id: string) => {
-    deleteDailyRecord(id);
-    setRecords(getDailyRecords());
-    if (editingId === id) resetForm();
-    toast.success("Record deleted");
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteDailyRecord(id);
+      if (editingId === id) resetForm();
+      toast.success("Record deleted");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to delete record");
+    }
   };
 
   const usedItemIds = itemLines.map((l) => l.itemId).filter(Boolean);
+
+  const filteredRecords = useMemo(() => {
+    let list = records;
+    if (fromDate) list = list.filter((r) => r.date >= fromDate);
+    if (toDate) list = list.filter((r) => r.date <= toDate);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(
+        (r) =>
+          r.date.includes(q) ||
+          r.items.some((i) => i.itemName.toLowerCase().includes(q)),
+      );
+    }
+    return list;
+  }, [records, fromDate, toDate, search]);
+
+  const handleExportCSV = () => {
+    const rows: Array<Record<string, string | number>> = [];
+    filteredRecords.forEach((r) => {
+      if (r.items.length === 0) {
+        rows.push({
+          Date: r.date,
+          Item: "",
+          Quantity: "",
+          "Rate/Ton": "",
+          "Total Coal": r.totalCoal,
+          "Steam Produced": r.steamProduced,
+          "Total Cost": r.totalCost,
+        });
+      } else {
+        r.items.forEach((it, idx) => {
+          rows.push({
+            Date: idx === 0 ? r.date : "",
+            Item: it.itemName,
+            Quantity: it.quantity,
+            "Rate/Ton": it.costPerTon,
+            "Total Coal": idx === 0 ? r.totalCoal : "",
+            "Steam Produced": idx === 0 ? r.steamProduced : "",
+            "Total Cost": idx === 0 ? r.totalCost : "",
+          });
+        });
+      }
+    });
+    if (rows.length === 0) {
+      toast.error("No records to export");
+      return;
+    }
+    downloadCSV(`daily-log-${new Date().toISOString().slice(0, 10)}.csv`, rows);
+    toast.success("Daily log exported");
+  };
 
   return (
     <div>
@@ -223,28 +335,99 @@ export default function DailyLog() {
 
             {itemLines.length > 0 && (
               <div className="space-y-2.5">
-                {itemLines.map((line, idx) => (
-                  <div key={line.id} className="flex items-center gap-3 p-3 rounded-lg bg-muted/40 border border-border/50">
-                    <span className="text-xs font-bold text-muted-foreground w-5 shrink-0">{idx + 1}</span>
-                    <div className="flex-1 min-w-0">
-                      <Select value={line.itemId} onValueChange={(val) => updateItemLine(line.id, "itemId", val)}>
-                        <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Select item" /></SelectTrigger>
-                        <SelectContent>
-                          {availableItems.filter((i) => !usedItemIds.includes(i.id) || i.id === line.itemId).map((i) => (
-                            <SelectItem key={i.id} value={i.id}>{i.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                {itemLines.map((line, idx) => {
+                  const status = lineStockStatus[line.id];
+                  const exceeds = status?.exceeds ?? false;
+                  const available = status?.available ?? 0;
+                  return (
+                    <div
+                      key={line.id}
+                      className={cn(
+                        "p-3 rounded-lg bg-muted/40 border",
+                        exceeds ? "border-destructive/60 bg-destructive/5" : "border-border/50",
+                      )}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-bold text-muted-foreground w-5 shrink-0">
+                          {idx + 1}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <Select
+                            value={line.itemId}
+                            onValueChange={(val) => updateItemLine(line.id, "itemId", val)}
+                          >
+                            <SelectTrigger className="h-9 text-sm">
+                              <SelectValue placeholder="Select item" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {availableItems
+                                .filter((i) => !usedItemIds.includes(i.id) || i.id === line.itemId)
+                                .map((i) => {
+                                  const avail = stockByItem[i.name] ?? 0;
+                                  return (
+                                    <SelectItem key={i.id} value={i.id}>
+                                      <span className="flex items-center gap-2">
+                                        <span>{i.name}</span>
+                                        <span
+                                          className={cn(
+                                            "text-[10px] font-normal",
+                                            avail <= 0
+                                              ? "text-destructive"
+                                              : "text-muted-foreground",
+                                          )}
+                                        >
+                                          ({avail.toFixed(1)}t avail)
+                                        </span>
+                                      </span>
+                                    </SelectItem>
+                                  );
+                                })}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="w-28 shrink-0">
+                          <Input
+                            type="number"
+                            value={line.quantity}
+                            onChange={(e) => updateItemLine(line.id, "quantity", e.target.value)}
+                            className={cn(
+                              "h-9 text-sm",
+                              exceeds && "border-destructive focus-visible:ring-destructive",
+                            )}
+                            placeholder="Tons"
+                          />
+                        </div>
+                        {line.rate > 0 && (
+                          <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
+                            Rs {line.rate.toFixed(2)}/t
+                          </span>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 shrink-0"
+                          onClick={() => removeItemLine(line.id)}
+                        >
+                          <X className="w-3.5 h-3.5 text-destructive" />
+                        </Button>
+                      </div>
+                      {line.itemName && (
+                        <div className="mt-2 ml-8 flex items-center gap-1.5 text-[11px]">
+                          {exceeds ? (
+                            <span className="flex items-center gap-1 text-destructive font-medium">
+                              <AlertTriangle className="w-3 h-3" />
+                              Only {available.toFixed(2)}t of &quot;{line.itemName}&quot; in stock — cannot exceed it.
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">
+                              {available.toFixed(2)}t available · {(available - (status?.requested ?? 0)).toFixed(2)}t remaining after this entry
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    <div className="w-28 shrink-0">
-                      <Input type="number" value={line.quantity} onChange={(e) => updateItemLine(line.id, "quantity", e.target.value)} className="h-9 text-sm" placeholder="Tons" />
-                    </div>
-                    {line.rate > 0 && <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">Rs {line.rate.toFixed(2)}/t</span>}
-                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => removeItemLine(line.id)}>
-                      <X className="w-3.5 h-3.5 text-destructive" />
-                    </Button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -285,7 +468,23 @@ export default function DailyLog() {
             </div>
           )}
 
-          <Button onClick={handleSave} className="w-full sm:w-auto" disabled={itemLines.length === 0}>
+          {hasStockError && (
+            <div className="rounded-md border border-destructive/60 bg-destructive/5 p-3 flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
+              <div className="text-xs text-destructive">
+                <p className="font-medium">One or more items exceed available stock.</p>
+                <p className="mt-0.5 text-destructive/80">
+                  Reduce the quantity of flagged lines, or record additional purchases in the{" "}
+                  <a href="/purchases" className="underline">Purchases</a> page first.
+                </p>
+              </div>
+            </div>
+          )}
+          <Button
+            onClick={handleSave}
+            className="w-full sm:w-auto"
+            disabled={itemLines.length === 0 || hasStockError}
+          >
             <Plus className="w-4 h-4 mr-2" /> {editingId ? "Update Entry" : "Save Entry"}
           </Button>
         </div>
@@ -294,10 +493,40 @@ export default function DailyLog() {
       <div className="content-card">
         <div className="content-card-header">
           <h2 className="font-heading font-semibold text-sm">Records</h2>
-          <span className="text-xs text-muted-foreground">{records.length} entries</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search…"
+                className="h-8 pl-7 pr-3 w-40 text-xs"
+              />
+            </div>
+            <Input
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              className="h-8 w-36 text-xs"
+              title="From"
+            />
+            <Input
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              className="h-8 w-36 text-xs"
+              title="To"
+            />
+            <Button size="sm" variant="outline" className="h-8 text-xs" onClick={handleExportCSV}>
+              <Download className="w-3.5 h-3.5 mr-1.5" /> CSV
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              {filteredRecords.length} / {records.length}
+            </span>
+          </div>
         </div>
         <div className="content-card-body p-0">
-          {records.length === 0 ? (
+          {filteredRecords.length === 0 ? (
             <div className="empty-state">
               <div className="empty-state-icon"><CalendarDays className="w-5 h-5 text-muted-foreground" /></div>
               <p className="empty-state-title">No records yet</p>
@@ -317,7 +546,7 @@ export default function DailyLog() {
                   </tr>
                 </thead>
                 <tbody>
-                  {[...records].reverse().map((r) => (
+                  {filteredRecords.map((r) => (
                     <tr key={r.id} className={cn(editingId === r.id && "bg-primary/5")}>
                       <td className="font-medium">{r.date}</td>
                       <td>

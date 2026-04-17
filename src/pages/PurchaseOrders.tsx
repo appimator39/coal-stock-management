@@ -9,16 +9,21 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { getPurchaseOrders, savePurchaseOrder, updatePurchaseOrder, deletePurchaseOrder, getPurchaseRecords, getVendors, getItems } from "@/lib/store";
+import { getPurchaseOrders, savePurchaseOrder, updatePurchaseOrder, deletePurchaseOrder, getPurchaseRecords, getVendors, getItems, nextPoNumber } from "@/lib/store";
 import { PurchaseOrder } from "@/lib/types";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import PODetailModal from "@/components/PODetailModal";
+import { useStoreTick } from "@/hooks/useStore";
+import { Search } from "lucide-react";
 
 export default function PurchaseOrders() {
-  const [orders, setOrders] = useState<PurchaseOrder[]>(getPurchaseOrders());
+  useStoreTick();
+  const orders = getPurchaseOrders();
   const vendors = getVendors();
   const availableItems = getItems();
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [date, setDate] = useState<Date>();
   const [vendorId, setVendorId] = useState("");
   const [itemId, setItemId] = useState("");
@@ -38,42 +43,40 @@ export default function PurchaseOrders() {
   const [editQuantity, setEditQuantity] = useState("");
   const [editPricePerTon, setEditPricePerTon] = useState("");
 
-  const generatePONumber = () => {
-    const count = getPurchaseOrders().length + 1;
-    return `PO-${String(count).padStart(4, "0")}`;
-  };
-
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!date || !vendorId || !itemId || !quantity || !pricePerTon) {
       toast.error("Please fill all fields");
       return;
     }
     const qty = parseFloat(quantity);
     const price = parseFloat(pricePerTon);
-    if (isNaN(qty) || isNaN(price)) {
-      toast.error("Please enter valid numbers");
+    if (isNaN(qty) || isNaN(price) || qty <= 0 || price < 0) {
+      toast.error("Please enter valid positive numbers");
       return;
     }
     const selectedItem = availableItems.find((i) => i.id === itemId);
-    const po: PurchaseOrder = {
-      id: crypto.randomUUID(),
-      poNumber: generatePONumber(),
-      date: format(date, "yyyy-MM-dd"),
-      vendorId,
-      item: selectedItem?.name || "",
-      quantity: qty,
-      pricePerTon: price,
-      totalAmount: qty * price,
-      status: "pending",
-    };
-    savePurchaseOrder(po);
-    setOrders(getPurchaseOrders());
-    setDate(undefined);
-    setVendorId("");
-    setItemId("");
-    setQuantity("");
-    setPricePerTon("");
-    toast.success(`Purchase Order ${po.poNumber} created`);
+    try {
+      const po: PurchaseOrder = {
+        id: crypto.randomUUID(),
+        poNumber: await nextPoNumber(),
+        date: format(date, "yyyy-MM-dd"),
+        vendorId,
+        item: selectedItem?.name || "",
+        quantity: qty,
+        pricePerTon: price,
+        totalAmount: qty * price,
+        status: "pending",
+      };
+      await savePurchaseOrder(po);
+      setDate(undefined);
+      setVendorId("");
+      setItemId("");
+      setQuantity("");
+      setPricePerTon("");
+      toast.success(`Purchase Order ${po.poNumber} created`);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to create PO");
+    }
   };
 
   const getReceivedQty = (poId: string) =>
@@ -91,53 +94,76 @@ export default function PurchaseOrders() {
     setEditPricePerTon(String(po.pricePerTon));
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editDate || !editVendorId || !editItemId || !editQuantity || !editPricePerTon) {
       toast.error("Please fill all fields"); return;
     }
     const qty = parseFloat(editQuantity);
     const price = parseFloat(editPricePerTon);
-    if (isNaN(qty) || isNaN(price) || qty <= 0 || price <= 0) {
+    if (isNaN(qty) || isNaN(price) || qty <= 0 || price < 0) {
       toast.error("Please enter valid numbers"); return;
     }
+    const received = getReceivedQty(editPO!.id);
+    if (qty < received) {
+      toast.error(`Quantity cannot be less than received (${received}t)`);
+      return;
+    }
     const selectedItem = availableItems.find((i) => i.id === editItemId);
-    updatePurchaseOrder({
-      ...editPO!,
-      date: format(editDate, "yyyy-MM-dd"),
-      vendorId: editVendorId,
-      item: selectedItem?.name || "",
-      quantity: qty,
-      pricePerTon: price,
-      totalAmount: qty * price,
-    });
-    setOrders(getPurchaseOrders());
-    setEditPO(null);
-    toast.success("Purchase Order updated");
+    try {
+      await updatePurchaseOrder({
+        ...editPO!,
+        date: format(editDate, "yyyy-MM-dd"),
+        vendorId: editVendorId,
+        item: selectedItem?.name || "",
+        quantity: qty,
+        pricePerTon: price,
+        totalAmount: qty * price,
+      });
+      setEditPO(null);
+      toast.success("Purchase Order updated");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to update PO");
+    }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     const po = orders.find((o) => o.id === id);
     if (po?.status === "fulfilled" || po?.status === "partial") {
       toast.error("Cannot delete a PO that has purchases recorded against it");
       return;
     }
-    deletePurchaseOrder(id);
-    setOrders(getPurchaseOrders());
-    toast.success("Purchase Order deleted");
+    try {
+      await deletePurchaseOrder(id);
+      toast.success("Purchase Order deleted");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to delete PO");
+    }
   };
 
   const getVendorName = (vid: string) => vendors.find((v) => v.id === vid)?.name || "Unknown";
 
   const filteredOrders = useMemo(() => {
-    if (!exportFrom && !exportTo) return orders;
-    return orders.filter((o) => {
-      const d = parse(o.date, "yyyy-MM-dd", new Date());
-      if (exportFrom && exportTo) return isWithinInterval(d, { start: startOfDay(exportFrom), end: endOfDay(exportTo) });
-      if (exportFrom) return d >= startOfDay(exportFrom);
-      if (exportTo) return d <= endOfDay(exportTo);
-      return true;
-    });
-  }, [orders, exportFrom, exportTo]);
+    let list = orders;
+    if (exportFrom || exportTo) {
+      list = list.filter((o) => {
+        const d = parse(o.date, "yyyy-MM-dd", new Date());
+        if (exportFrom && exportTo) return isWithinInterval(d, { start: startOfDay(exportFrom), end: endOfDay(exportTo) });
+        if (exportFrom) return d >= startOfDay(exportFrom);
+        if (exportTo) return d <= endOfDay(exportTo);
+        return true;
+      });
+    }
+    if (statusFilter !== "all") list = list.filter((o) => o.status === statusFilter);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter((o) =>
+        o.poNumber.toLowerCase().includes(q) ||
+        (o.item || "").toLowerCase().includes(q) ||
+        getVendorName(o.vendorId).toLowerCase().includes(q),
+      );
+    }
+    return list;
+  }, [orders, exportFrom, exportTo, statusFilter, search, vendors]);
 
   const handleExportCSV = () => {
     if (filteredOrders.length === 0) {
@@ -300,7 +326,29 @@ export default function PurchaseOrders() {
       <div className="content-card">
         <div className="content-card-header">
           <h2 className="font-heading font-semibold text-sm">All Purchase Orders</h2>
-          <span className="text-xs text-muted-foreground">{filteredOrders.length} orders</span>
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search PO, vendor, item…"
+                className="h-8 pl-7 pr-3 w-56 text-xs"
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="h-8 w-32 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="partial">Partial</SelectItem>
+                <SelectItem value="fulfilled">Fulfilled</SelectItem>
+              </SelectContent>
+            </Select>
+            <span className="text-xs text-muted-foreground">{filteredOrders.length} / {orders.length}</span>
+          </div>
         </div>
         <div className="content-card-body p-0">
           {filteredOrders.length === 0 ? (

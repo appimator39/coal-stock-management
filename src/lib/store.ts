@@ -1,61 +1,146 @@
-import { DailyRecord, PurchaseRecord, PurchaseOrder, Vendor, Item, DailyRecordItem } from "./types";
+// Synchronous facade over the server-backed API.
+// The pages are written against a synchronous store API. To avoid a huge
+// refactor while switching the source of truth to a remote Turso database,
+// we keep a hydrated in-memory cache that mirrors the server state and is
+// rewritten whenever a mutation happens. All mutations call the API, then
+// refresh the affected slice of the cache.
 
-export function resetAllData() {
-  const keys = ["coal_daily_records", "coal_purchase_records", "coal_opening_balance", "coal_vendors", "coal_purchase_orders", "coal_items"];
-  keys.forEach((k) => localStorage.removeItem(k));
+import {
+  DailyRecord,
+  DailyRecordItem,
+  Item,
+  PurchaseOrder,
+  PurchaseRecord,
+  Vendor,
+} from './types';
+import { api } from './api';
+
+interface Cache {
+  vendors: Vendor[];
+  items: Item[];
+  purchaseOrders: PurchaseOrder[];
+  purchaseRecords: PurchaseRecord[];
+  dailyRecords: DailyRecord[];
+  openingBalance: number;
+  hydrated: boolean;
 }
 
-const DAILY_KEY = "coal_daily_records";
-const PURCHASE_KEY = "coal_purchase_records";
-const OPENING_KEY = "coal_opening_balance";
-const VENDOR_KEY = "coal_vendors";
-const PO_KEY = "coal_purchase_orders";
-const ITEM_KEY = "coal_items";
+const cache: Cache = {
+  vendors: [],
+  items: [],
+  purchaseOrders: [],
+  purchaseRecords: [],
+  dailyRecords: [],
+  openingBalance: 0,
+  hydrated: false,
+};
 
-// Normalize old single-item records to new multi-item format
-function normalizeDailyRecord(r: any): DailyRecord {
-  if (r.items && Array.isArray(r.items)) return r as DailyRecord;
-  // Legacy record: convert single item to items array
-  const itemName = r.item || "Unspecified";
-  const qty = r.coalConsumed || 0;
-  const cost = r.costPerTon || 0;
-  return {
-    id: r.id,
-    date: r.date,
-    items: [{ itemName, quantity: qty, costPerTon: cost }],
-    steamProduced: r.steamProduced || 0,
-    totalCoal: qty,
-    totalCost: r.totalCost || qty * cost,
-  };
+type CacheListener = () => void;
+const listeners = new Set<CacheListener>();
+
+export function subscribe(fn: CacheListener): () => void {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
 }
 
-// --- Daily Records ---
+function notify() {
+  listeners.forEach((l) => {
+    try {
+      l();
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('store listener error', e);
+    }
+  });
+}
+
+export function isHydrated(): boolean {
+  return cache.hydrated;
+}
+
+export async function hydrateCache(): Promise<void> {
+  const [vendors, items, purchaseOrders, purchaseRecords, dailyRecords, settings] =
+    await Promise.all([
+      api.get<Vendor[]>('/api/vendors'),
+      api.get<Item[]>('/api/items'),
+      api.get<PurchaseOrder[]>('/api/purchase-orders'),
+      api.get<PurchaseRecord[]>('/api/purchase-records'),
+      api.get<DailyRecord[]>('/api/daily-records'),
+      api.get<{ settings: Record<string, string> }>('/api/settings'),
+    ]);
+  cache.vendors = vendors;
+  cache.items = items;
+  cache.purchaseOrders = purchaseOrders;
+  cache.purchaseRecords = purchaseRecords;
+  cache.dailyRecords = dailyRecords;
+  cache.openingBalance = Number(settings.settings?.opening_balance ?? 0) || 0;
+  cache.hydrated = true;
+  notify();
+}
+
+export function clearCache(): void {
+  cache.vendors = [];
+  cache.items = [];
+  cache.purchaseOrders = [];
+  cache.purchaseRecords = [];
+  cache.dailyRecords = [];
+  cache.openingBalance = 0;
+  cache.hydrated = false;
+  notify();
+}
+
+// ---------- Reset ----------
+export async function resetAllData(): Promise<void> {
+  await api.del('/api/settings');
+  cache.vendors = [];
+  cache.items = [];
+  cache.purchaseOrders = [];
+  cache.purchaseRecords = [];
+  cache.dailyRecords = [];
+  cache.openingBalance = 0;
+  notify();
+}
+
+// ---------- Daily Records ----------
 export function getDailyRecords(): DailyRecord[] {
-  try {
-    const data = localStorage.getItem(DAILY_KEY);
-    const raw = data ? JSON.parse(data) : [];
-    return raw.map(normalizeDailyRecord);
-  } catch { return []; }
+  return cache.dailyRecords.slice();
 }
 
-export function saveDailyRecord(record: DailyRecord) {
-  const records = getDailyRecords();
-  records.push(record);
-  localStorage.setItem(DAILY_KEY, JSON.stringify(records));
+export async function saveDailyRecord(record: DailyRecord): Promise<void> {
+  await api.post('/api/daily-records', {
+    id: record.id,
+    date: record.date,
+    steamProduced: record.steamProduced,
+    items: record.items,
+    notes: record.notes,
+  });
+  cache.dailyRecords = await api.get<DailyRecord[]>('/api/daily-records');
+  notify();
 }
 
-export function updateDailyRecord(record: DailyRecord) {
-  const records = getDailyRecords().map((r) => (r.id === record.id ? record : r));
-  localStorage.setItem(DAILY_KEY, JSON.stringify(records));
+export async function updateDailyRecord(record: DailyRecord): Promise<void> {
+  await api.patch(`/api/daily-records/${record.id}`, {
+    date: record.date,
+    steamProduced: record.steamProduced,
+    items: record.items,
+    notes: record.notes,
+  });
+  cache.dailyRecords = await api.get<DailyRecord[]>('/api/daily-records');
+  notify();
 }
 
-export function deleteDailyRecord(id: string) {
-  const records = getDailyRecords().filter((r) => r.id !== id);
-  localStorage.setItem(DAILY_KEY, JSON.stringify(records));
+export async function deleteDailyRecord(id: string): Promise<void> {
+  await api.del(`/api/daily-records/${id}`);
+  cache.dailyRecords = cache.dailyRecords.filter((r) => r.id !== id);
+  notify();
 }
 
-// --- Helpers to flatten daily records for consumption tracking ---
-export function flattenDailyItems(records: DailyRecord[]): Array<{ date: string; itemName: string; quantity: number; costPerTon: number }> {
+export function flattenDailyItems(records: DailyRecord[]): Array<{
+  date: string;
+  itemName: string;
+  quantity: number;
+  costPerTon: number;
+}> {
   const result: Array<{ date: string; itemName: string; quantity: number; costPerTon: number }> = [];
   records.forEach((r) => {
     r.items.forEach((item) => {
@@ -65,107 +150,189 @@ export function flattenDailyItems(records: DailyRecord[]): Array<{ date: string;
   return result;
 }
 
-// --- Purchase Records ---
+// ---------- Purchase Records ----------
 export function getPurchaseRecords(): PurchaseRecord[] {
-  try {
-    const data = localStorage.getItem(PURCHASE_KEY);
-    return data ? JSON.parse(data) : [];
-  } catch { return []; }
+  return cache.purchaseRecords.slice();
 }
 
-export function savePurchaseRecord(record: PurchaseRecord) {
-  const records = getPurchaseRecords();
-  records.push(record);
-  localStorage.setItem(PURCHASE_KEY, JSON.stringify(records));
+export async function savePurchaseRecord(record: PurchaseRecord): Promise<void> {
+  await api.post('/api/purchase-records', {
+    id: record.id,
+    date: record.date,
+    poId: record.poId,
+    quantity: record.quantity,
+    builtyNumber: record.builtyNumber,
+    truckNumber: record.truckNumber,
+    notes: record.notes,
+  });
+  const [prs, pos] = await Promise.all([
+    api.get<PurchaseRecord[]>('/api/purchase-records'),
+    api.get<PurchaseOrder[]>('/api/purchase-orders'),
+  ]);
+  cache.purchaseRecords = prs;
+  cache.purchaseOrders = pos;
+  notify();
 }
 
-export function deletePurchaseRecord(id: string) {
-  const records = getPurchaseRecords().filter((r) => r.id !== id);
-  localStorage.setItem(PURCHASE_KEY, JSON.stringify(records));
+export async function updatePurchaseRecord(record: PurchaseRecord): Promise<void> {
+  await api.patch(`/api/purchase-records/${record.id}`, {
+    date: record.date,
+    quantity: record.quantity,
+    builtyNumber: record.builtyNumber,
+    truckNumber: record.truckNumber,
+    notes: record.notes,
+  });
+  const [prs, pos] = await Promise.all([
+    api.get<PurchaseRecord[]>('/api/purchase-records'),
+    api.get<PurchaseOrder[]>('/api/purchase-orders'),
+  ]);
+  cache.purchaseRecords = prs;
+  cache.purchaseOrders = pos;
+  notify();
 }
 
-// --- Opening Balance ---
+export async function deletePurchaseRecord(id: string): Promise<void> {
+  await api.del(`/api/purchase-records/${id}`);
+  const [prs, pos] = await Promise.all([
+    api.get<PurchaseRecord[]>('/api/purchase-records'),
+    api.get<PurchaseOrder[]>('/api/purchase-orders'),
+  ]);
+  cache.purchaseRecords = prs;
+  cache.purchaseOrders = pos;
+  notify();
+}
+
+// ---------- Opening Balance ----------
 export function getOpeningBalance(): number {
-  return Number(localStorage.getItem(OPENING_KEY) || "0");
+  return cache.openingBalance;
 }
 
-export function setOpeningBalance(val: number) {
-  localStorage.setItem(OPENING_KEY, String(val));
+export async function setOpeningBalance(val: number): Promise<void> {
+  await api.put('/api/settings', { key: 'opening_balance', value: String(val) });
+  cache.openingBalance = val;
+  notify();
 }
 
-// --- Vendors ---
+// ---------- Vendors ----------
 export function getVendors(): Vendor[] {
-  try {
-    const data = localStorage.getItem(VENDOR_KEY);
-    return data ? JSON.parse(data) : [];
-  } catch { return []; }
+  return cache.vendors.slice();
 }
 
-export function saveVendor(vendor: Vendor) {
-  const vendors = getVendors();
-  vendors.push(vendor);
-  localStorage.setItem(VENDOR_KEY, JSON.stringify(vendors));
+export async function saveVendor(vendor: Vendor): Promise<void> {
+  await api.post('/api/vendors', vendor);
+  cache.vendors = [...cache.vendors, vendor].sort((a, b) => a.name.localeCompare(b.name));
+  notify();
 }
 
-export function updateVendor(vendor: Vendor) {
-  const vendors = getVendors().map((v) => (v.id === vendor.id ? vendor : v));
-  localStorage.setItem(VENDOR_KEY, JSON.stringify(vendors));
+export async function updateVendor(vendor: Vendor): Promise<void> {
+  await api.patch(`/api/vendors/${vendor.id}`, vendor);
+  cache.vendors = cache.vendors
+    .map((v) => (v.id === vendor.id ? vendor : v))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  notify();
 }
 
-export function deleteVendor(id: string) {
-  const vendors = getVendors().filter((v) => v.id !== id);
-  localStorage.setItem(VENDOR_KEY, JSON.stringify(vendors));
+export async function deleteVendor(id: string): Promise<void> {
+  await api.del(`/api/vendors/${id}`);
+  cache.vendors = cache.vendors.filter((v) => v.id !== id);
+  notify();
 }
 
-// --- Purchase Orders ---
+// ---------- Purchase Orders ----------
 export function getPurchaseOrders(): PurchaseOrder[] {
-  try {
-    const data = localStorage.getItem(PO_KEY);
-    return data ? JSON.parse(data) : [];
-  } catch { return []; }
+  return cache.purchaseOrders.slice();
 }
 
-export function savePurchaseOrder(po: PurchaseOrder) {
-  const orders = getPurchaseOrders();
-  orders.push(po);
-  localStorage.setItem(PO_KEY, JSON.stringify(orders));
+export async function savePurchaseOrder(po: PurchaseOrder): Promise<void> {
+  const res = await api.post<{ id: string; poNumber: string }>('/api/purchase-orders', {
+    id: po.id,
+    poNumber: po.poNumber,
+    date: po.date,
+    vendorId: po.vendorId,
+    item: po.item,
+    quantity: po.quantity,
+    pricePerTon: po.pricePerTon,
+    notes: po.notes,
+  });
+  const saved: PurchaseOrder = { ...po, id: res.id ?? po.id, poNumber: res.poNumber ?? po.poNumber };
+  cache.purchaseOrders = [saved, ...cache.purchaseOrders];
+  notify();
 }
 
-export function updatePurchaseOrder(po: PurchaseOrder) {
-  const orders = getPurchaseOrders().map((o) => (o.id === po.id ? po : o));
-  localStorage.setItem(PO_KEY, JSON.stringify(orders));
+export async function updatePurchaseOrder(po: PurchaseOrder): Promise<void> {
+  await api.patch(`/api/purchase-orders/${po.id}`, {
+    date: po.date,
+    vendorId: po.vendorId,
+    item: po.item,
+    quantity: po.quantity,
+    pricePerTon: po.pricePerTon,
+    notes: po.notes,
+  });
+  cache.purchaseOrders = await api.get<PurchaseOrder[]>('/api/purchase-orders');
+  notify();
 }
 
-export function updatePurchaseRecord(record: PurchaseRecord) {
-  const records = getPurchaseRecords().map((r) => (r.id === record.id ? record : r));
-  localStorage.setItem(PURCHASE_KEY, JSON.stringify(records));
+export async function deletePurchaseOrder(id: string): Promise<void> {
+  await api.del(`/api/purchase-orders/${id}`);
+  cache.purchaseOrders = cache.purchaseOrders.filter((o) => o.id !== id);
+  notify();
 }
 
-export function deletePurchaseOrder(id: string) {
-  const orders = getPurchaseOrders().filter((o) => o.id !== id);
-  localStorage.setItem(PO_KEY, JSON.stringify(orders));
+export async function nextPoNumber(): Promise<string> {
+  const orders = cache.purchaseOrders;
+  if (orders.length === 0) return 'PO-0001';
+  // Find highest number
+  let max = 0;
+  for (const o of orders) {
+    const m = /PO-(\d+)/.exec(o.poNumber);
+    if (m) {
+      const n = parseInt(m[1], 10);
+      if (n > max) max = n;
+    }
+  }
+  return `PO-${String(max + 1).padStart(4, '0')}`;
 }
 
-// --- Items ---
+// ---------- Items ----------
 export function getItems(): Item[] {
-  try {
-    const data = localStorage.getItem(ITEM_KEY);
-    return data ? JSON.parse(data) : [];
-  } catch { return []; }
+  return cache.items.slice();
 }
 
-export function saveItem(item: Item) {
-  const items = getItems();
-  items.push(item);
-  localStorage.setItem(ITEM_KEY, JSON.stringify(items));
+export async function saveItem(item: Item): Promise<void> {
+  await api.post('/api/items', item);
+  cache.items = [...cache.items, item].sort((a, b) => a.name.localeCompare(b.name));
+  notify();
 }
 
-export function updateItem(item: Item) {
-  const items = getItems().map((i) => (i.id === item.id ? item : i));
-  localStorage.setItem(ITEM_KEY, JSON.stringify(items));
+export async function updateItem(item: Item): Promise<void> {
+  await api.patch(`/api/items/${item.id}`, item);
+  cache.items = cache.items.map((i) => (i.id === item.id ? item : i)).sort((a, b) => a.name.localeCompare(b.name));
+  notify();
 }
 
-export function deleteItem(id: string) {
-  const items = getItems().filter((i) => i.id !== id);
-  localStorage.setItem(ITEM_KEY, JSON.stringify(items));
+export async function deleteItem(id: string): Promise<void> {
+  await api.del(`/api/items/${id}`);
+  cache.items = cache.items.filter((i) => i.id !== id);
+  notify();
 }
+
+// ---------- Stock availability ----------
+// Client-side computation matching server. Pages call this synchronously.
+export function getStockByItem(excludeDailyId?: string): Record<string, number> {
+  const stock: Record<string, number> = {};
+  for (const p of cache.purchaseRecords) {
+    const name = p.item || 'Unspecified';
+    stock[name] = (stock[name] ?? 0) + p.quantity;
+  }
+  for (const d of cache.dailyRecords) {
+    if (excludeDailyId && d.id === excludeDailyId) continue;
+    for (const i of d.items) {
+      const name = i.itemName || 'Unspecified';
+      stock[name] = (stock[name] ?? 0) - i.quantity;
+    }
+  }
+  return stock;
+}
+
+// Re-export common DailyRecordItem for pages.
+export type { DailyRecordItem };
