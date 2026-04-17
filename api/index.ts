@@ -66,19 +66,30 @@ const routes: Route[] = [
 ];
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Extract segments from request URL. Strip the leading /api/ prefix and any query string.
-  const url = req.url ?? '';
-  const pathname = url.split('?')[0];
-  const stripped = pathname.replace(/^\/api\/?/, '');
-  const segments: string[] = stripped.split('/').filter(Boolean);
+  try {
+    // Extract segments from request URL. Strip the leading /api/ prefix and any query string.
+    const url = req.url ?? '';
+    const pathname = url.split('?')[0];
+    const stripped = pathname.replace(/^\/api\/?/, '');
+    const segments: string[] = stripped.split('/').filter(Boolean);
 
-  for (const route of routes) {
-    const params = route.match(segments);
-    if (params) {
-      req.query = { ...req.query, ...params };
-      return route.handler(req, res);
+    for (const route of routes) {
+      const params = route.match(segments);
+      if (params) {
+        req.query = { ...req.query, ...params };
+        return await route.handler(req, res);
+      }
+    }
+
+    return res.status(404).json({ error: `Not found: /api/${segments.join('/')}` });
+  } catch (e: any) {
+    // Surface the error to the client + logs so we can diagnose prod failures.
+    console.error('[api/router] Unhandled error:', e);
+    if (!res.headersSent) {
+      return res.status(500).json({
+        error: e?.message ?? 'Internal server error',
+        stack: process.env.NODE_ENV !== 'production' ? e?.stack : undefined,
+      });
     }
   }
-
-  return res.status(404).json({ error: `Not found: /api/${segments.join('/')}` });
 }
