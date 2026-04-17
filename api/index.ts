@@ -67,11 +67,30 @@ const routes: Route[] = [
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
-    // Extract segments from request URL. Strip the leading /api/ prefix and any query string.
     const url = req.url ?? '';
     const pathname = url.split('?')[0];
     const stripped = pathname.replace(/^\/api\/?/, '');
     const segments: string[] = stripped.split('/').filter(Boolean);
+
+    // Diagnostic endpoint — does NOT hit the DB, only checks env vars.
+    // GET /api/_debug
+    if (segments.length === 1 && segments[0] === '_debug') {
+      return res.json({
+        ok: true,
+        env: {
+          TURSO_DATABASE_URL: process.env.TURSO_DATABASE_URL ? 'set' : 'MISSING',
+          TURSO_AUTH_TOKEN: process.env.TURSO_AUTH_TOKEN ? 'set' : 'MISSING',
+          JWT_SECRET: process.env.JWT_SECRET
+            ? `set (${process.env.JWT_SECRET.length} chars)`
+            : 'MISSING',
+          NODE_ENV: process.env.NODE_ENV,
+          VERCEL_ENV: process.env.VERCEL_ENV,
+          VERCEL_REGION: process.env.VERCEL_REGION,
+        },
+        node: process.version,
+        routeCount: routes.length,
+      });
+    }
 
     for (const route of routes) {
       const params = route.match(segments);
@@ -83,12 +102,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(404).json({ error: `Not found: /api/${segments.join('/')}` });
   } catch (e: any) {
-    // Surface the error to the client + logs so we can diagnose prod failures.
     console.error('[api/router] Unhandled error:', e);
     if (!res.headersSent) {
       return res.status(500).json({
         error: e?.message ?? 'Internal server error',
-        stack: process.env.NODE_ENV !== 'production' ? e?.stack : undefined,
+        stack: e?.stack,
+        name: e?.name,
       });
     }
   }
