@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getDb } from '../_lib/db';
-import { ensureInit } from '../_lib/init';
-import { requireUser } from '../_lib/auth';
-import { getStockByItem } from '../_lib/stock';
+import { getDb } from '../../_lib/db';
+import { ensureInit } from '../../_lib/init';
+import { requireUser } from '../../_lib/auth';
+import { getStockByItem } from '../../_lib/stock';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {

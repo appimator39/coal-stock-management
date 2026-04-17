@@ -1,0 +1,84 @@
+// Single-function router — dispatches every /api/* request to the right handler.
+// Consolidated into one file to stay under Vercel Hobby's 12-function cap.
+
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+
+import loginHandler from './_handlers/auth/login';
+import logoutHandler from './_handlers/auth/logout';
+import meHandler from './_handlers/auth/me';
+import changePasswordHandler from './_handlers/auth/change-password';
+
+import vendorsIndexHandler from './_handlers/vendors/index';
+import vendorIdHandler from './_handlers/vendors/[id]';
+
+import itemsIndexHandler from './_handlers/items/index';
+import itemIdHandler from './_handlers/items/[id]';
+
+import purchaseOrdersIndexHandler from './_handlers/purchase-orders/index';
+import purchaseOrderIdHandler from './_handlers/purchase-orders/[id]';
+
+import purchaseRecordsIndexHandler from './_handlers/purchase-records/index';
+import purchaseRecordIdHandler from './_handlers/purchase-records/[id]';
+
+import dailyRecordsIndexHandler from './_handlers/daily-records/index';
+import dailyRecordIdHandler from './_handlers/daily-records/[id]';
+
+import settingsHandler from './_handlers/settings';
+import stockHandler from './_handlers/stock';
+
+type Handler = (req: VercelRequest, res: VercelResponse) => unknown | Promise<unknown>;
+
+interface Route {
+  match: (segments: string[]) => Record<string, string> | null;
+  handler: Handler;
+}
+
+const routes: Route[] = [
+  // Auth
+  { match: (s) => (s.length === 2 && s[0] === 'auth' && s[1] === 'login' ? {} : null), handler: loginHandler },
+  { match: (s) => (s.length === 2 && s[0] === 'auth' && s[1] === 'logout' ? {} : null), handler: logoutHandler },
+  { match: (s) => (s.length === 2 && s[0] === 'auth' && s[1] === 'me' ? {} : null), handler: meHandler },
+  { match: (s) => (s.length === 2 && s[0] === 'auth' && s[1] === 'change-password' ? {} : null), handler: changePasswordHandler },
+
+  // Vendors
+  { match: (s) => (s.length === 1 && s[0] === 'vendors' ? {} : null), handler: vendorsIndexHandler },
+  { match: (s) => (s.length === 2 && s[0] === 'vendors' ? { id: s[1] } : null), handler: vendorIdHandler },
+
+  // Items
+  { match: (s) => (s.length === 1 && s[0] === 'items' ? {} : null), handler: itemsIndexHandler },
+  { match: (s) => (s.length === 2 && s[0] === 'items' ? { id: s[1] } : null), handler: itemIdHandler },
+
+  // Purchase orders
+  { match: (s) => (s.length === 1 && s[0] === 'purchase-orders' ? {} : null), handler: purchaseOrdersIndexHandler },
+  { match: (s) => (s.length === 2 && s[0] === 'purchase-orders' ? { id: s[1] } : null), handler: purchaseOrderIdHandler },
+
+  // Purchase records
+  { match: (s) => (s.length === 1 && s[0] === 'purchase-records' ? {} : null), handler: purchaseRecordsIndexHandler },
+  { match: (s) => (s.length === 2 && s[0] === 'purchase-records' ? { id: s[1] } : null), handler: purchaseRecordIdHandler },
+
+  // Daily records
+  { match: (s) => (s.length === 1 && s[0] === 'daily-records' ? {} : null), handler: dailyRecordsIndexHandler },
+  { match: (s) => (s.length === 2 && s[0] === 'daily-records' ? { id: s[1] } : null), handler: dailyRecordIdHandler },
+
+  // Singletons
+  { match: (s) => (s.length === 1 && s[0] === 'settings' ? {} : null), handler: settingsHandler },
+  { match: (s) => (s.length === 1 && s[0] === 'stock' ? {} : null), handler: stockHandler },
+];
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Extract segments from request URL. Strip the leading /api/ prefix and any query string.
+  const url = req.url ?? '';
+  const pathname = url.split('?')[0];
+  const stripped = pathname.replace(/^\/api\/?/, '');
+  const segments: string[] = stripped.split('/').filter(Boolean);
+
+  for (const route of routes) {
+    const params = route.match(segments);
+    if (params) {
+      req.query = { ...req.query, ...params };
+      return route.handler(req, res);
+    }
+  }
+
+  return res.status(404).json({ error: `Not found: /api/${segments.join('/')}` });
+}

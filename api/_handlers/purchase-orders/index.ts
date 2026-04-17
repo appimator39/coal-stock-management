@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getDb } from '../_lib/db';
-import { ensureInit } from '../_lib/init';
-import { requireAdmin, requireUser } from '../_lib/auth';
+import { getDb } from '../../_lib/db';
+import { ensureInit } from '../../_lib/init';
+import { requireAdmin, requireUser } from '../../_lib/auth';
 
 function poRow(r: any) {
   return {

@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getDb } from '../_lib/db';
-import { ensureInit } from '../_lib/init';
-import { requireUser, verifyPassword, hashPassword } from '../_lib/auth';
+import { getDb } from '../../_lib/db';
+import { ensureInit } from '../../_lib/init';
+import { requireUser, verifyPassword, hashPassword } from '../../_lib/auth';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {

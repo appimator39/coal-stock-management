@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getDb } from '../_lib/db';
-import { ensureInit } from '../_lib/init';
-import { requireAdmin, requireUser } from '../_lib/auth';
+import { getDb } from '../../_lib/db';
+import { ensureInit } from '../../_lib/init';
+import { requireAdmin, requireUser } from '../../_lib/auth';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
@@ -10,9 +10,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (req.method === 'GET') {
       if (!(await requireUser(req, res))) return;
-      const r = await db.execute(
-        `SELECT id, name, phone, email, address, notes FROM vendors ORDER BY name ASC`,
-      );
+      const r = await db.execute(`SELECT id, name, description FROM items ORDER BY name ASC`);
       return res.json(r.rows);
     }
 
@@ -23,12 +21,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const id = b.id ?? crypto.randomUUID();
       try {
         await db.execute({
-          sql: `INSERT INTO vendors (id, name, phone, email, address, notes) VALUES (?, ?, ?, ?, ?, ?)`,
-          args: [id, b.name.trim(), b.phone ?? null, b.email ?? null, b.address ?? null, b.notes ?? null],
+          sql: `INSERT INTO items (id, name, description) VALUES (?, ?, ?)`,
+          args: [id, b.name.trim(), b.description ?? null],
         });
       } catch (e: any) {
         if (String(e?.message ?? '').includes('UNIQUE')) {
-          return res.status(409).json({ error: 'Vendor name already exists' });
+          return res.status(409).json({ error: 'Item name already exists' });
         }
         throw e;
       }
@@ -38,7 +36,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Allow', 'GET, POST');
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (e: any) {
-    console.error('[vendors]', e);
+    console.error('[items]', e);
     return res.status(500).json({ error: e?.message ?? 'Failed' });
   }
 }
