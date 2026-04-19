@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { useStoreTick } from "@/hooks/useStore";
 import { downloadCSV } from "@/lib/csv";
 import { Download, Search } from "lucide-react";
+import { useAuth } from "@/components/AuthProvider";
 
 function getReceivedQty(poId: string, excludeId?: string): number {
   return getPurchaseRecords()
@@ -31,6 +32,8 @@ function getReceivedQty(poId: string, excludeId?: string): number {
 
 export default function Purchases() {
   useStoreTick();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const records = getPurchaseRecords();
   const [date, setDate] = useState<Date>();
   const [selectedPoId, setSelectedPoId] = useState("");
@@ -224,6 +227,7 @@ export default function Purchases() {
         <p className="page-subtitle">Record purchases against approved purchase orders</p>
       </div>
 
+      {isAdmin && (
       <div className="form-section">
         <div className="form-section-header">
           <h2 className="font-heading font-semibold text-sm">Record Purchase (from PO)</h2>
@@ -352,6 +356,8 @@ export default function Purchases() {
         </div>
       </div>
 
+      )}
+
       {/* Purchase History Table */}
       <div className="content-card">
         <div className="content-card-header">
@@ -409,12 +415,16 @@ export default function Purchases() {
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setViewRecord(r)}>
                             <Eye className="w-3.5 h-3.5 text-muted-foreground" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleStartEdit(r)}>
-                            <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(r.id)}>
-                            <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                          </Button>
+                          {isAdmin && (
+                            <>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleStartEdit(r)}>
+                                <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(r.id)}>
+                                <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>

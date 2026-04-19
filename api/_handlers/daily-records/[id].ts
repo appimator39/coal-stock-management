@@ -12,7 +12,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const db = getDb();
 
     if (req.method === 'PATCH') {
-      const u = await requireUser(req, res);
+      const u = await requireAdmin(req, res);
       if (!u) return;
       const b = (req.body ?? {}) as any;
       if (!b.date || !Array.isArray(b.items) || b.items.length === 0) {

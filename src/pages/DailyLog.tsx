@@ -15,6 +15,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useStoreTick } from "@/hooks/useStore";
 import { downloadCSV } from "@/lib/csv";
 import { AlertTriangle } from "lucide-react";
+import { useAuth } from "@/components/AuthProvider";
 
 interface ItemLine {
   id: string;
@@ -26,6 +27,8 @@ interface ItemLine {
 
 export default function DailyLog() {
   useStoreTick();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const records = getDailyRecords();
   const [date, setDate] = useState<Date>();
   const [steamProduced, setSteamProduced] = useState("");
@@ -279,6 +282,7 @@ export default function DailyLog() {
         <p className="page-subtitle">Record daily coal consumption and steam production</p>
       </div>
 
+      {isAdmin && (
       <div className="content-card mb-6">
         <div className="content-card-header">
           <h2 className="font-heading font-semibold text-sm">
@@ -489,6 +493,7 @@ export default function DailyLog() {
           </Button>
         </div>
       </div>
+      )}
 
       <div className="content-card">
         <div className="content-card-header">
@@ -565,14 +570,16 @@ export default function DailyLog() {
                       <td>{r.steamProduced}</td>
                       <td className="font-medium">Rs {r.totalCost.toFixed(2)}</td>
                       <td>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(r)}>
-                            <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(r.id)}>
-                            <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                          </Button>
-                        </div>
+                        {isAdmin && (
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(r)}>
+                              <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(r.id)}>
+                              <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                            </Button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))}

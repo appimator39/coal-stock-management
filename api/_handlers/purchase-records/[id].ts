@@ -12,7 +12,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const db = getDb();
 
     if (req.method === 'PATCH') {
-      if (!(await requireUser(req, res))) return;
+      if (!(await requireAdmin(req, res))) return;
       const b = (req.body ?? {}) as any;
       if (!b.date || b.quantity == null) {
         return res.status(400).json({ error: 'Missing required fields' });

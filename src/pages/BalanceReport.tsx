@@ -32,9 +32,12 @@ import {
 } from "recharts";
 import { useStoreTick } from "@/hooks/useStore";
 import { downloadCSV } from "@/lib/csv";
+import { useAuth } from "@/components/AuthProvider";
 
 export default function BalanceReport() {
   useStoreTick();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const opening = getOpeningBalance();
   const [openingInput, setOpeningInput] = useState(String(opening));
 
@@ -146,6 +149,7 @@ export default function BalanceReport() {
         <p className="page-subtitle">Track coal inventory with running balance calculations</p>
       </div>
 
+      {isAdmin && (
       <div className="form-section">
         <div className="form-section-header">
           <h2 className="font-heading font-semibold text-sm">Opening Balance</h2>
@@ -167,6 +171,7 @@ export default function BalanceReport() {
           </div>
         </div>
       </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard title="Opening Balance" value={opening.toFixed(1)} unit="tons" icon={Package} />

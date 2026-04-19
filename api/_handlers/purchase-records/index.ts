@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getDb } from '../../_lib/db.js';
 import { ensureInit } from '../../_lib/init.js';
-import { requireUser } from '../../_lib/auth.js';
+import { requireAdmin, requireUser } from '../../_lib/auth.js';
 import { recomputePoStatus } from '../../_lib/po-status.js';
 
 function prRow(r: any) {
@@ -37,7 +37,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'POST') {
-      if (!(await requireUser(req, res))) return;
+      if (!(await requireAdmin(req, res))) return;
       const b = (req.body ?? {}) as any;
       if (!b.date || !b.poId || !b.quantity) {
         return res.status(400).json({ error: 'Missing required fields' });

@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getDb } from '../../_lib/db.js';
 import { ensureInit } from '../../_lib/init.js';
-import { requireUser } from '../../_lib/auth.js';
+import { requireAdmin, requireUser } from '../../_lib/auth.js';
 import { getStockByItem } from '../../_lib/stock.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -49,7 +49,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'POST') {
-      const u = await requireUser(req, res);
+      const u = await requireAdmin(req, res);
       if (!u) return;
       const b = (req.body ?? {}) as any;
       if (!b.date || !Array.isArray(b.items) || b.items.length === 0) {

@@ -16,9 +16,12 @@ import { Badge } from "@/components/ui/badge";
 import PODetailModal from "@/components/PODetailModal";
 import { useStoreTick } from "@/hooks/useStore";
 import { Search } from "lucide-react";
+import { useAuth } from "@/components/AuthProvider";
 
 export default function PurchaseOrders() {
   useStoreTick();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const orders = getPurchaseOrders();
   const vendors = getVendors();
   const availableItems = getItems();
@@ -192,6 +195,7 @@ export default function PurchaseOrders() {
         <p className="page-subtitle">Create and manage purchase orders for coal procurement</p>
       </div>
 
+      {isAdmin && (
       <div className="form-section">
         <div className="form-section-header">
           <h2 className="font-heading font-semibold text-sm">Create New Purchase Order</h2>
@@ -274,6 +278,7 @@ export default function PurchaseOrders() {
           )}
         </div>
       </div>
+      )}
 
       {/* Export Section */}
       <div className="content-card mb-6">
@@ -421,7 +426,7 @@ export default function PurchaseOrders() {
                             >
                               <Eye className="w-3.5 h-3.5 text-muted-foreground" />
                             </Button>
-                            {o.status === "pending" && (
+                            {isAdmin && o.status === "pending" && (
                               <>
                                 <Button variant="ghost" size="icon" className="h-8 w-8" title="Edit" onClick={() => handleStartEdit(o)}>
                                   <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
