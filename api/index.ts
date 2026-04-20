@@ -23,6 +23,9 @@ import purchaseRecordIdHandler from './_handlers/purchase-records/[id].js';
 import dailyRecordsIndexHandler from './_handlers/daily-records/index.js';
 import dailyRecordIdHandler from './_handlers/daily-records/[id].js';
 
+import paymentsIndexHandler from './_handlers/payments/index.js';
+import paymentIdHandler from './_handlers/payments/[id].js';
+
 import settingsHandler from './_handlers/settings.js';
 import stockHandler from './_handlers/stock.js';
 
@@ -59,6 +62,10 @@ const routes: Route[] = [
   // Daily records
   { match: (s) => (s.length === 1 && s[0] === 'daily-records' ? {} : null), handler: dailyRecordsIndexHandler },
   { match: (s) => (s.length === 2 && s[0] === 'daily-records' ? { id: s[1] } : null), handler: dailyRecordIdHandler },
+
+  // Payments
+  { match: (s) => (s.length === 1 && s[0] === 'payments' ? {} : null), handler: paymentsIndexHandler },
+  { match: (s) => (s.length === 2 && s[0] === 'payments' ? { id: s[1] } : null), handler: paymentIdHandler },
 
   // Singletons
   { match: (s) => (s.length === 1 && s[0] === 'settings' ? {} : null), handler: settingsHandler },

@@ -40,6 +40,8 @@ export default function Purchases() {
   const [quantity, setQuantity] = useState("");
   const [builtyNumber, setBuiltyNumber] = useState("");
   const [truckNumber, setTruckNumber] = useState("");
+  const [ciNo, setCiNo] = useState("");
+  const [igpNo, setIgpNo] = useState("");
   const [search, setSearch] = useState("");
 
   // View dialog
@@ -51,6 +53,8 @@ export default function Purchases() {
   const [editQuantity, setEditQuantity] = useState("");
   const [editBuilty, setEditBuilty] = useState("");
   const [editTruck, setEditTruck] = useState("");
+  const [editCiNo, setEditCiNo] = useState("");
+  const [editIgpNo, setEditIgpNo] = useState("");
 
   const vendors = getVendors();
   const activePOs = getPurchaseOrders().filter(
@@ -104,6 +108,8 @@ export default function Purchases() {
       totalAmount: qty * selectedPO.pricePerTon,
       builtyNumber: builtyNumber.trim() || undefined,
       truckNumber: truckNumber.trim() || undefined,
+      ciNo: ciNo.trim() || undefined,
+      igpNo: igpNo.trim() || undefined,
     };
 
     try {
@@ -111,6 +117,7 @@ export default function Purchases() {
       const newTotal = getReceivedQty(selectedPO.id) + qty;
       setDate(undefined); setSelectedPoId(""); setQuantity("");
       setBuiltyNumber(""); setTruckNumber("");
+      setCiNo(""); setIgpNo("");
       const stillRemaining = selectedPO.quantity - newTotal;
       if (stillRemaining <= 0) {
         toast.success(`${selectedPO.poNumber} fully fulfilled`);
@@ -138,6 +145,8 @@ export default function Purchases() {
     setEditQuantity(String(r.quantity));
     setEditBuilty(r.builtyNumber || "");
     setEditTruck(r.truckNumber || "");
+    setEditCiNo(r.ciNo || "");
+    setEditIgpNo(r.igpNo || "");
   };
 
   const handleSaveEdit = async () => {
@@ -163,6 +172,8 @@ export default function Purchases() {
       totalAmount: qty * editRecord.pricePerTon,
       builtyNumber: editBuilty.trim() || undefined,
       truckNumber: editTruck.trim() || undefined,
+      ciNo: editCiNo.trim() || undefined,
+      igpNo: editIgpNo.trim() || undefined,
     };
 
     try {
@@ -182,6 +193,8 @@ export default function Purchases() {
       r.vendor.toLowerCase().includes(q) ||
       (r.builtyNumber ?? "").toLowerCase().includes(q) ||
       (r.truckNumber ?? "").toLowerCase().includes(q) ||
+      (r.ciNo ?? "").toLowerCase().includes(q) ||
+      (r.igpNo ?? "").toLowerCase().includes(q) ||
       (r.item ?? "").toLowerCase().includes(q) ||
       r.date.includes(q)
     );
@@ -199,6 +212,8 @@ export default function Purchases() {
         "PO #": r.poNumber,
         Vendor: r.vendor,
         Item: r.item,
+        "CI #": r.ciNo ?? "",
+        "IGP #": r.igpNo ?? "",
         "Builty #": r.builtyNumber ?? "",
         "Truck #": r.truckNumber ?? "",
         "Qty (tons)": r.quantity,
@@ -308,6 +323,17 @@ export default function Purchases() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">CI Number</Label>
+                  <Input value={ciNo} onChange={(e) => setCiNo(e.target.value)} className="mt-1.5" placeholder="e.g. CI-0042" />
+                </div>
+                <div>
+                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">IGP Number</Label>
+                  <Input value={igpNo} onChange={(e) => setIgpNo(e.target.value)} className="mt-1.5" placeholder="e.g. IGP-0088" />
+                </div>
+              </div>
+
               <Button onClick={handleAdd} className="w-full sm:w-auto" disabled={exceedsBalance}>
                 <Plus className="w-4 h-4 mr-2" /> Record Purchase
               </Button>
@@ -393,6 +419,8 @@ export default function Purchases() {
                     <th>Date</th>
                     <th>PO #</th>
                     <th>Vendor</th>
+                    <th>CI #</th>
+                    <th>IGP #</th>
                     <th>Builty #</th>
                     <th>Truck #</th>
                     <th>Qty (tons)</th>
@@ -406,6 +434,8 @@ export default function Purchases() {
                       <td className="font-medium">{r.date}</td>
                       <td className="font-mono text-xs">{r.poNumber}</td>
                       <td className="font-medium">{r.vendor}</td>
+                      <td className="font-mono text-xs">{r.ciNo || <span className="text-muted-foreground">—</span>}</td>
+                      <td className="font-mono text-xs">{r.igpNo || <span className="text-muted-foreground">—</span>}</td>
                       <td className="font-mono text-xs">{r.builtyNumber || <span className="text-muted-foreground">—</span>}</td>
                       <td className="font-mono text-xs">{r.truckNumber || <span className="text-muted-foreground">—</span>}</td>
                       <td>{r.quantity}</td>
@@ -460,6 +490,14 @@ export default function Purchases() {
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wider">Item</p>
                   <p className="font-semibold mt-0.5">{viewRecord.item || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">CI Number</p>
+                  <p className="font-mono font-semibold mt-0.5">{viewRecord.ciNo || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">IGP Number</p>
+                  <p className="font-mono font-semibold mt-0.5">{viewRecord.igpNo || "—"}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wider">Builty Number</p>
@@ -543,6 +581,16 @@ export default function Purchases() {
                 <div>
                   <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Truck Number</Label>
                   <Input value={editTruck} onChange={(e) => setEditTruck(e.target.value)} className="mt-1.5" placeholder="e.g. ABC-1234" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">CI Number</Label>
+                  <Input value={editCiNo} onChange={(e) => setEditCiNo(e.target.value)} className="mt-1.5" placeholder="e.g. CI-0042" />
+                </div>
+                <div>
+                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">IGP Number</Label>
+                  <Input value={editIgpNo} onChange={(e) => setEditIgpNo(e.target.value)} className="mt-1.5" placeholder="e.g. IGP-0088" />
                 </div>
               </div>
               {editQuantity && !isNaN(parseFloat(editQuantity)) && (

@@ -48,10 +48,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       await db.execute({
         sql: `UPDATE purchase_records
-              SET date=?, quantity=?, total_amount=?, builty_number=?, truck_number=?, notes=?,
-                  updated_at=datetime('now')
+              SET date=?, quantity=?, total_amount=?, builty_number=?, truck_number=?,
+                  ci_no=?, igp_no=?, notes=?, updated_at=datetime('now')
               WHERE id=?`,
-        args: [b.date, qty, qty * pricePerTon, b.builtyNumber ?? null, b.truckNumber ?? null, b.notes ?? null, id],
+        args: [
+          b.date,
+          qty,
+          qty * pricePerTon,
+          b.builtyNumber ?? null,
+          b.truckNumber ?? null,
+          b.ciNo ?? null,
+          b.igpNo ?? null,
+          b.notes ?? null,
+          id,
+        ],
       });
       await recomputePoStatus(db, poId);
       return res.json({ ok: true });

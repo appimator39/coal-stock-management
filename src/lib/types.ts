@@ -44,6 +44,20 @@ export interface PurchaseRecord {
   totalAmount: number;
   builtyNumber?: string;
   truckNumber?: string;
+  ciNo?: string;
+  igpNo?: string;
+  notes?: string;
+}
+
+export interface Payment {
+  id: string;
+  vendorId: string;
+  vendorName?: string;
+  ciNo?: string;
+  amount: number;
+  chequeNo?: string;
+  bankName?: string;
+  chequeDate?: string;
   notes?: string;
 }
 

@@ -14,6 +14,8 @@ import Items from "./pages/Items";
 import PurchaseOrders from "./pages/PurchaseOrders";
 import Purchases from "./pages/Purchases";
 import BalanceReport from "./pages/BalanceReport";
+import Payments from "./pages/Payments";
+import PayableReport from "./pages/PayableReport";
 import Settings from "./pages/Settings";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
@@ -57,6 +59,8 @@ const App = () => (
               />
               <Route path="/purchase-orders" element={<PurchaseOrders />} />
               <Route path="/purchases" element={<Purchases />} />
+              <Route path="/payments" element={<Payments />} />
+              <Route path="/payable-report" element={<PayableReport />} />
               <Route path="/balance" element={<BalanceReport />} />
               <Route
                 path="/settings"

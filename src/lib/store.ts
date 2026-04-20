@@ -9,6 +9,7 @@ import {
   DailyRecord,
   DailyRecordItem,
   Item,
+  Payment,
   PurchaseOrder,
   PurchaseRecord,
   Vendor,
@@ -21,6 +22,7 @@ interface Cache {
   purchaseOrders: PurchaseOrder[];
   purchaseRecords: PurchaseRecord[];
   dailyRecords: DailyRecord[];
+  payments: Payment[];
   openingBalance: number;
   hydrated: boolean;
 }
@@ -31,6 +33,7 @@ const cache: Cache = {
   purchaseOrders: [],
   purchaseRecords: [],
   dailyRecords: [],
+  payments: [],
   openingBalance: 0,
   hydrated: false,
 };
@@ -59,13 +62,14 @@ export function isHydrated(): boolean {
 }
 
 export async function hydrateCache(): Promise<void> {
-  const [vendors, items, purchaseOrders, purchaseRecords, dailyRecords, settings] =
+  const [vendors, items, purchaseOrders, purchaseRecords, dailyRecords, payments, settings] =
     await Promise.all([
       api.get<Vendor[]>('/api/vendors'),
       api.get<Item[]>('/api/items'),
       api.get<PurchaseOrder[]>('/api/purchase-orders'),
       api.get<PurchaseRecord[]>('/api/purchase-records'),
       api.get<DailyRecord[]>('/api/daily-records'),
+      api.get<Payment[]>('/api/payments'),
       api.get<{ settings: Record<string, string> }>('/api/settings'),
     ]);
   cache.vendors = vendors;
@@ -73,6 +77,7 @@ export async function hydrateCache(): Promise<void> {
   cache.purchaseOrders = purchaseOrders;
   cache.purchaseRecords = purchaseRecords;
   cache.dailyRecords = dailyRecords;
+  cache.payments = payments;
   cache.openingBalance = Number(settings.settings?.opening_balance ?? 0) || 0;
   cache.hydrated = true;
   notify();
@@ -84,6 +89,7 @@ export function clearCache(): void {
   cache.purchaseOrders = [];
   cache.purchaseRecords = [];
   cache.dailyRecords = [];
+  cache.payments = [];
   cache.openingBalance = 0;
   cache.hydrated = false;
   notify();
@@ -97,6 +103,7 @@ export async function resetAllData(): Promise<void> {
   cache.purchaseOrders = [];
   cache.purchaseRecords = [];
   cache.dailyRecords = [];
+  cache.payments = [];
   cache.openingBalance = 0;
   notify();
 }
@@ -163,6 +170,8 @@ export async function savePurchaseRecord(record: PurchaseRecord): Promise<void> 
     quantity: record.quantity,
     builtyNumber: record.builtyNumber,
     truckNumber: record.truckNumber,
+    ciNo: record.ciNo,
+    igpNo: record.igpNo,
     notes: record.notes,
   });
   const [prs, pos] = await Promise.all([
@@ -180,6 +189,8 @@ export async function updatePurchaseRecord(record: PurchaseRecord): Promise<void
     quantity: record.quantity,
     builtyNumber: record.builtyNumber,
     truckNumber: record.truckNumber,
+    ciNo: record.ciNo,
+    igpNo: record.igpNo,
     notes: record.notes,
   });
   const [prs, pos] = await Promise.all([
@@ -334,5 +345,45 @@ export function getStockByItem(excludeDailyId?: string): Record<string, number> 
   return stock;
 }
 
-// Re-export common DailyRecordItem for pages.
+// ---------- Payments ----------
+export function getPayments(): Payment[] {
+  return cache.payments.slice();
+}
+
+export async function savePayment(payment: Payment): Promise<void> {
+  await api.post('/api/payments', {
+    id: payment.id,
+    vendorId: payment.vendorId,
+    ciNo: payment.ciNo,
+    amount: payment.amount,
+    chequeNo: payment.chequeNo,
+    bankName: payment.bankName,
+    chequeDate: payment.chequeDate,
+    notes: payment.notes,
+  });
+  cache.payments = await api.get<Payment[]>('/api/payments');
+  notify();
+}
+
+export async function updatePayment(payment: Payment): Promise<void> {
+  await api.patch(`/api/payments/${payment.id}`, {
+    vendorId: payment.vendorId,
+    ciNo: payment.ciNo,
+    amount: payment.amount,
+    chequeNo: payment.chequeNo,
+    bankName: payment.bankName,
+    chequeDate: payment.chequeDate,
+    notes: payment.notes,
+  });
+  cache.payments = await api.get<Payment[]>('/api/payments');
+  notify();
+}
+
+export async function deletePayment(id: string): Promise<void> {
+  await api.del(`/api/payments/${id}`);
+  cache.payments = cache.payments.filter((p) => p.id !== id);
+  notify();
+}
+
+// Re-export common types for pages.
 export type { DailyRecordItem };

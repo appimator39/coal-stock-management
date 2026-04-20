@@ -9,6 +9,8 @@ import {
   ClipboardList,
   ChevronLeft,
   Package,
+  Wallet,
+  Scale,
   Settings as SettingsIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -29,6 +31,8 @@ const links: NavItem[] = [
   { to: "/items", label: "Items", icon: Package, requires: "admin" },
   { to: "/purchase-orders", label: "Purchase Orders", icon: ClipboardList },
   { to: "/purchases", label: "Purchases", icon: ShoppingCart },
+  { to: "/payments", label: "Payments", icon: Wallet },
+  { to: "/payable-report", label: "Payable Report", icon: Scale },
   { to: "/balance", label: "Balance Report", icon: BarChart3 },
   { to: "/settings", label: "Settings", icon: SettingsIcon, requires: "admin" },
 ];

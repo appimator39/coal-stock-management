@@ -17,6 +17,8 @@ function prRow(r: any) {
     totalAmount: Number(r.total_amount),
     builtyNumber: r.builty_number ?? undefined,
     truckNumber: r.truck_number ?? undefined,
+    ciNo: r.ci_no ?? undefined,
+    igpNo: r.igp_no ?? undefined,
     notes: r.notes ?? undefined,
   };
 }
@@ -30,7 +32,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!(await requireUser(req, res))) return;
       const r = await db.execute(
         `SELECT id, date, po_id, po_number, vendor, item, quantity, price_per_ton,
-                total_amount, builty_number, truck_number, notes
+                total_amount, builty_number, truck_number, ci_no, igp_no, notes
          FROM purchase_records ORDER BY date DESC`,
       );
       return res.json(r.rows.map(prRow));
@@ -78,8 +80,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await db.execute({
         sql: `INSERT INTO purchase_records
               (id, date, po_id, po_number, vendor, item, quantity, price_per_ton,
-               total_amount, builty_number, truck_number, notes)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+               total_amount, builty_number, truck_number, ci_no, igp_no, notes)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         args: [
           id,
           b.date,
@@ -92,6 +94,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           qty * pricePerTon,
           b.builtyNumber ?? null,
           b.truckNumber ?? null,
+          b.ciNo ?? null,
+          b.igpNo ?? null,
           b.notes ?? null,
         ],
       });

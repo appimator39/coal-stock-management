@@ -4,7 +4,7 @@
 
 import type { Client } from '@libsql/client';
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 const MIGRATIONS: Record<number, string[]> = {
   1: [
@@ -109,6 +109,30 @@ const MIGRATIONS: Record<number, string[]> = {
       value TEXT NOT NULL,
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     )`,
+  ],
+
+  2: [
+    // CI No + IGP No on each purchase receipt (optional).
+    `ALTER TABLE purchase_records ADD COLUMN ci_no TEXT`,
+    `ALTER TABLE purchase_records ADD COLUMN igp_no TEXT`,
+
+    // Vendor payments — ties back to a vendor and optionally a specific CI.
+    `CREATE TABLE IF NOT EXISTS payments (
+      id TEXT PRIMARY KEY,
+      vendor_id TEXT NOT NULL,
+      ci_no TEXT,
+      amount REAL NOT NULL CHECK (amount > 0),
+      cheque_no TEXT,
+      bank_name TEXT,
+      cheque_date TEXT,
+      notes TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (vendor_id) REFERENCES vendors(id) ON DELETE RESTRICT
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_pay_vendor ON payments(vendor_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_pay_date ON payments(cheque_date)`,
+    `CREATE INDEX IF NOT EXISTS idx_pay_ci ON payments(ci_no)`,
   ],
 };
 
