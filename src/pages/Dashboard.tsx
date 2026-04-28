@@ -1,4 +1,4 @@
-import { Flame, CloudCog, Wallet, Package, CalendarDays, ArrowRight, Calendar, TrendingUp } from "lucide-react";
+import { Flame, CloudCog, Wallet, Package, CalendarDays, ArrowRight, Calendar, TrendingUp, Gauge } from "lucide-react";
 import { Link } from "react-router-dom";
 import StatCard from "@/components/StatCard";
 import { getDailyRecords, getPurchaseRecords, getOpeningBalance, flattenDailyItems } from "@/lib/store";
@@ -64,7 +64,8 @@ export default function Dashboard() {
     const totalCost = daily.reduce((s, r) => s + r.totalCost, 0);
     const totalPurchased = purchases.reduce((s, r) => s + r.quantity, 0);
     const balance = opening + totalPurchased - totalConsumed;
-    return { totalConsumed, totalSteam, totalCost, totalPurchased, balance };
+    const steamCostPerTon = totalSteam > 0 ? totalCost / totalSteam : 0;
+    return { totalConsumed, totalSteam, totalCost, totalPurchased, balance, steamCostPerTon };
   }, [daily, purchases, opening]);
 
   const todayStats = useMemo(() => {
@@ -114,10 +115,11 @@ export default function Dashboard() {
       </div>
 
       {/* Overall Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
         <StatCard title="Total Coal Consumed" value={stats.totalConsumed.toFixed(1)} unit="tons" icon={Flame} variant="primary" />
         <StatCard title="Total Steam Produced" value={stats.totalSteam.toFixed(1)} unit="tons" icon={CloudCog} variant="success" />
         <StatCard title="Total Cost" value={`Rs ${stats.totalCost.toFixed(2)}`} icon={Wallet} variant="warning" />
+        <StatCard title="Steam Cost / Ton" value={stats.steamCostPerTon > 0 ? `Rs ${stats.steamCostPerTon.toFixed(2)}` : "—"} icon={Gauge} />
         <StatCard title="Coal Balance" value={stats.balance.toFixed(1)} unit="tons" icon={Package} />
       </div>
 
