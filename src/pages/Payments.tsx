@@ -71,22 +71,33 @@ export default function Payments() {
 
   const [search, setSearch] = useState("");
 
-  // CI No options are derived from purchase records for the selected vendor.
-  const ciOptionsForVendor = (vId: string): string[] => {
+  // CI No options with invoice totals for a given vendor.
+  const ciOptionsForVendor = (vId: string): Array<{ ciNo: string; invoiceTotal: number }> => {
     const vendorName = vendors.find((v) => v.id === vId)?.name ?? "";
-    const set = new Set<string>();
+    const map = new Map<string, number>();
     purchaseRecords.forEach((r) => {
-      if ((r.vendor === vendorName || r.poNumber) && r.vendor === vendorName && r.ciNo) {
-        set.add(r.ciNo);
+      if (r.vendor === vendorName && r.ciNo) {
+        map.set(r.ciNo, (map.get(r.ciNo) ?? 0) + r.totalAmount);
       }
     });
-    return Array.from(set).sort();
+    return Array.from(map.entries())
+      .map(([ciNo, invoiceTotal]) => ({ ciNo, invoiceTotal }))
+      .sort((a, b) => a.ciNo.localeCompare(b.ciNo));
   };
 
   const createCiOptions = useMemo(() => ciOptionsForVendor(vendorId), [vendorId, purchaseRecords, vendors]);
   const editCiOptions = useMemo(
     () => ciOptionsForVendor(editVendorId),
     [editVendorId, purchaseRecords, vendors],
+  );
+
+  const selectedCiInvoiceTotal = useMemo(
+    () => createCiOptions.find((o) => o.ciNo === ciNo)?.invoiceTotal ?? null,
+    [createCiOptions, ciNo],
+  );
+  const editSelectedCiInvoiceTotal = useMemo(
+    () => editCiOptions.find((o) => o.ciNo === editCiNo)?.invoiceTotal ?? null,
+    [editCiOptions, editCiNo],
   );
 
   const resetForm = () => {
@@ -266,18 +277,28 @@ export default function Payments() {
                       CI Number
                     </Label>
                     {vendorId && createCiOptions.length > 0 ? (
-                      <Select value={ciNo} onValueChange={setCiNo}>
-                        <SelectTrigger className="mt-1.5">
-                          <SelectValue placeholder="Select CI #" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {createCiOptions.map((c) => (
-                            <SelectItem key={c} value={c}>
-                              {c}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <div>
+                        <Select value={ciNo} onValueChange={setCiNo}>
+                          <SelectTrigger className="mt-1.5">
+                            <SelectValue placeholder="Select CI #" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {createCiOptions.map((o) => (
+                              <SelectItem key={o.ciNo} value={o.ciNo}>
+                                <span className="flex items-center justify-between gap-4 w-full">
+                                  <span>{o.ciNo}</span>
+                                  <span className="text-xs text-muted-foreground">Rs {o.invoiceTotal.toLocaleString()}</span>
+                                </span>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {selectedCiInvoiceTotal !== null && (
+                          <p className="mt-1.5 text-xs font-medium text-primary">
+                            Invoice value: Rs {selectedCiInvoiceTotal.toLocaleString()}
+                          </p>
+                        )}
+                      </div>
                     ) : (
                       <Input
                         value={ciNo}
@@ -485,18 +506,28 @@ export default function Payments() {
                     CI Number
                   </Label>
                   {editVendorId && editCiOptions.length > 0 ? (
-                    <Select value={editCiNo} onValueChange={setEditCiNo}>
-                      <SelectTrigger className="mt-1.5">
-                        <SelectValue placeholder="Select CI #" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {editCiOptions.map((c) => (
-                          <SelectItem key={c} value={c}>
-                            {c}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div>
+                      <Select value={editCiNo} onValueChange={setEditCiNo}>
+                        <SelectTrigger className="mt-1.5">
+                          <SelectValue placeholder="Select CI #" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {editCiOptions.map((o) => (
+                            <SelectItem key={o.ciNo} value={o.ciNo}>
+                              <span className="flex items-center justify-between gap-4 w-full">
+                                <span>{o.ciNo}</span>
+                                <span className="text-xs text-muted-foreground">Rs {o.invoiceTotal.toLocaleString()}</span>
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {editSelectedCiInvoiceTotal !== null && (
+                        <p className="mt-1.5 text-xs font-medium text-primary">
+                          Invoice value: Rs {editSelectedCiInvoiceTotal.toLocaleString()}
+                        </p>
+                      )}
+                    </div>
                   ) : (
                     <Input
                       value={editCiNo}
