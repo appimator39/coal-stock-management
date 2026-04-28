@@ -547,6 +547,7 @@ export default function DailyLog() {
                     <th>Total Coal (tons)</th>
                     <th>Steam (tons)</th>
                     <th>Total Cost (Rs)</th>
+                    <th>Rs / Ton Steam</th>
                     <th className="w-20"></th>
                   </tr>
                 </thead>
@@ -569,6 +570,11 @@ export default function DailyLog() {
                       <td>{r.totalCoal}</td>
                       <td>{r.steamProduced}</td>
                       <td className="font-medium">Rs {r.totalCost.toFixed(2)}</td>
+                      <td className="font-medium">
+                        {r.steamProduced > 0
+                          ? `Rs ${(r.totalCost / r.steamProduced).toFixed(2)}`
+                          : <span className="text-muted-foreground">—</span>}
+                      </td>
                       <td>
                         {isAdmin && (
                           <div className="flex gap-1">
